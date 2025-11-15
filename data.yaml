@@ -1,0 +1,10 @@
+# data.yaml
+
+
+train: dataset/split/images/train    # path to training images (relative to repo root)
+val: dataset/split/images/val        # path to validation images (relative to repo root)
+train_label_dir: dataset/split/labels/train
+val_label_dir: dataset/split/labels/val
+nc: 10         # number of classes
+names: [apple, avocado, banana, kiwi, lemon, orange, pear, 
+      pomegranate, strawberry, watermelon]

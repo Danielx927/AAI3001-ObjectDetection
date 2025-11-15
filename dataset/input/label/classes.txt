@@ -1,0 +1,10 @@
+apple
+avocado
+banana
+kiwi
+lemon
+orange
+pear
+pomegranate
+strawberry
+watermelon
