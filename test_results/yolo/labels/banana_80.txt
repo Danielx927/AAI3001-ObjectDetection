@@ -1,0 +1,8 @@
+[          2           2           2           2]
+2	banana	not fresh	72	212	435	350	0.734
+[          2           2           2           2]
+2	banana	not fresh	21	166	441	336	0.513
+[          2           2           2           2]
+2	banana	not fresh	28	74	435	294	0.267
+[          2           2           2           2]
+2	banana	not fresh	37	142	405	281	0.253
