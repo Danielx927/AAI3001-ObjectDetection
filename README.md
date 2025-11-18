@@ -53,7 +53,3 @@ After splitting:
 
 > **Final training data features a balanced number of labeled objects per class, maximizing fairness and reliability in model learning.**
 
-
-
-
-

@@ -1,0 +1,4 @@
+iterative-stratification>=0.1.8
+pillow>=9.0.0
+numpy>=1.21.0
+ultralytics
