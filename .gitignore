@@ -3,5 +3,4 @@ dataset/fruit_images (apple, banana, orange)/
 dataset/input
 
 __pycache__/
-yolo/runs
 .ipynb_checkpoints/
