@@ -30,16 +30,30 @@ Below are the Kaggle datasets referenced (insert actual links in the placeholder
    *Fruit Images for Object Detection:* <https://www.kaggle.com/datasets/mbkinaci/fruit-images-for-object-detection>  
    *Notes:* 300 images of apple, banana and orange were taken from this dataset
 
-2. **Dataset Source 2**  
-   *Kaggle Link:* <INSERT_LINK_HERE>  
-   *Notes:* Mention which classes were extracted.
 
-3. **Dataset Source 3**  
-   *Kaggle Link:* <INSERT_LINK_HERE>  
-   *Notes:* Optional — only include if used.
+## Data Splitting & Class Balancing
 
-*(Add or remove entries depending on how many sources you used.)*
+To ensure robust model evaluation and fair representation across classes, the dataset underwent **stratified train/validation splitting** and **class balancing**:
 
----
+### 1. Train/Validation Split
 
-This combined dataset provides a well-structured, consistently labelled, and diverse foundation for model training and evaluation.
+- The dataset was split into **training** and **validation** sets using *multi-label iterative stratification*.
+  This method preserves each fruit class's distribution between splits, even for images containing multiple fruit types.
+- **Validation size:** 20% of the dataset
+- All images and their corresponding YOLO label files were kept together within each split.
+
+### 2. Balancing Class Distribution (Undersampling & Oversampling)
+
+After splitting:
+- **Class balancing was applied to the training set only** (the validation set was left untouched for realistic evaluation).
+- For each fruit class, we targeted equal numbers of labeled objects (bounding boxes):
+    - **Undersampling:** If a class had more than the target number of bounding boxes, images and labels were randomly selected so no class exceeded the target.
+    - **Oversampling:** If a class was underrepresented, images containing that class were duplicated until the class reached the target count.
+- This process ensures no model bias toward majority classes and corrects for natural imbalances after splitting.
+
+> **Final training data features a balanced number of labeled objects per class, maximizing fairness and reliability in model learning.**
+
+
+
+
+
