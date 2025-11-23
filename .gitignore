@@ -4,3 +4,4 @@ dataset/input
 
 __pycache__/
 .ipynb_checkpoints/
+/dataset
