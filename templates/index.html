@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fruit Detection Demo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="page-container">
+  <header class="header">
+    <h1>Fruit Detection Explorer</h1>
+    <p>Upload an image, compare Faster-RCNN and YOLO detections, and visualize how the models behave.</p>
+  </header>
+
+  <!-- Upload form -->
+  <section class="card">
+    <h2>1. Upload a fruit image</h2>
+    <form action="{{ url_for('predict') }}" method="post" enctype="multipart/form-data" class="upload-form">
+      <input type="file" name="image" accept="image/*" required>
+      <button type="submit">Run Detection</button>
+    </form>
+    <p class="hint">Supported formats: JPG, JPEG, PNG.</p>
+  </section>
+
+  {% if uploaded_image_url %}
+  <section class="card">
+    <h2>2. Detection results</h2>
+    <div class="image-row">
+      <div class="image-col">
+        <h3>Original</h3>
+        <img src="{{ uploaded_image_url }}" alt="Uploaded image">
+      </div>
+      <div class="image-col">
+        <h3>Faster-RCNN</h3>
+        <img src="{{ rcnn_image_url }}" alt="Faster-RCNN detections">
+      </div>
+      <div class="image-col">
+        <h3>YOLO</h3>
+        <img src="{{ yolo_image_url }}" alt="YOLO detections">
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. Detected fruits per model</h2>
+    <div class="table-row">
+      <div class="table-col">
+        <h3>Faster-RCNN</h3>
+        <table>
+          <thead>
+          <tr>
+            <th>Label</th>
+            <th>Confidence</th>
+            <th>Box (x1, y1, x2, y2)</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for d in rcnn_detections %}
+          <tr>
+            <td>{{ d.label }}</td>
+            <td>{{ '%.2f'|format(d.score) }}</td>
+            <td>{{ d.box }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <p class="metric">Avg confidence: {{ '%.3f'|format(rcnn_stats.avg_confidence) }}</p>
+      </div>
+      <div class="table-col">
+        <h3>YOLO</h3>
+        <table>
+          <thead>
+          <tr>
+            <th>Label</th>
+            <th>Confidence</th>
+            <th>Box (x1, y1, x2, y2)</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for d in yolo_detections %}
+          <tr>
+            <td>{{ d.label }}</td>
+            <td>{{ '%.2f'|format(d.score) }}</td>
+            <td>{{ d.box }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        <p class="metric">Avg confidence: {{ '%.3f'|format(yolo_stats.avg_confidence) }}</p>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if uploaded_image_url %}
+  <section class="card">
+    <h2>4. Visualizing what each model "sees"</h2>
+    <p>
+      This chart shows how many instances of each fruit class were detected by each model for this image.
+      It helps you see if one model is missing small fruits or over-detecting certain classes.
+    </p>
+    <canvas id="countChart"></canvas>
+  </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>5. Faster-RCNN vs YOLO (overall comparison)</h2>
+    <div class="comparison-layout">
+      <div class="comparison-text">
+        <h3>Conceptual differences</h3>
+        <ul>
+          <li><strong>Faster-RCNN</strong> is a two-stage detector: proposes regions, then classifies them. Higher accuracy but slower.</li>
+          <li><strong>YOLO</strong> is a single-stage detector: predicts boxes and classes in one pass. Much faster and good for real-time.</li>
+          <li>On your fruit dataset, Faster-RCNN may give better mAP and tighter boxes;
+            YOLO is better for live camera demos and low-latency applications.</li>
+        </ul>
+
+        <h3>Model behaviour on fruits</h3>
+        <ul>
+          <li>Faster-RCNN handles <strong>cluttered baskets</strong> and overlapping fruits better.</li>
+          <li>YOLO may <strong>miss very small fruits</strong> but quickly detects larger, central fruits.</li>
+          <li>Higher confidence thresholds clean YOLO’s detections quickly; Faster-RCNN may keep more true positives.</li>
+        </ul>
+      </div>
+
+      <div class="comparison-charts">
+        <canvas id="mapChart"></canvas>
+        <canvas id="speedChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>Fruit Detection Project · Local Demo</p>
+  </footer>
+</div>
+
+<script>
+  {% if uploaded_image_url %}
+  const rcnnCounts = {{ rcnn_stats.per_class_counts | tojson }};
+  const yoloCounts = {{ yolo_stats.per_class_counts | tojson }};
+  const allLabels = Array.from(new Set([
+    ...Object.keys(rcnnCounts),
+    ...Object.keys(yoloCounts)
+  ])).sort();
+
+  const rcnnData = allLabels.map(l => rcnnCounts[l] || 0);
+  const yoloData = allLabels.map(l => yoloCounts[l] || 0);
+
+  const ctxCounts = document.getElementById('countChart');
+  new Chart(ctxCounts, {
+    type: 'bar',
+    data: {
+      labels: allLabels,
+      datasets: [
+        { label: 'Faster-RCNN', data: rcnnData },
+        { label: 'YOLO', data: yoloData }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Detected fruit count per model' }
+      },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+  {% endif %}
+
+  const metrics = {{ comparison_metrics | tojson }};
+
+  const ctxMap = document.getElementById('mapChart');
+  new Chart(ctxMap, {
+    type: 'bar',
+    data: {
+      labels: ['mAP@0.5', 'mAP@0.5:0.95'],
+      datasets: [
+        {
+          label: 'Faster-RCNN',
+          data: [metrics.map_50["Faster-RCNN"], metrics.map_50_95["Faster-RCNN"]]
+        },
+        {
+          label: 'YOLO',
+          data: [metrics.map_50["YOLO"], metrics.map_50_95["YOLO"]]
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Accuracy comparison (replace with your real results)'
+        }
+      },
+      scales: { y: { beginAtZero: true, max: 1.0 } }
+    }
+  });
+
+  const ctxSpeed = document.getElementById('speedChart');
+  new Chart(ctxSpeed, {
+    type: 'bar',
+    data: {
+      labels: ['Inference time (ms)', 'Parameters (M)'],
+      datasets: [
+        {
+          label: 'Faster-RCNN',
+          data: [metrics.inference_ms["Faster-RCNN"], metrics.params_m["Faster-RCNN"]]
+        },
+        {
+          label: 'YOLO',
+          data: [metrics.inference_ms["YOLO"], metrics.params_m["YOLO"]]
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Speed & model size comparison' }
+      },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+</body>
+</html>

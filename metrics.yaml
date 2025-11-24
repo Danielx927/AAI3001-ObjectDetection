@@ -1,0 +1,11 @@
+faster_rcnn:
+  map_50: 0.88
+  map_50_95: 0.71
+  inference_ms: 135
+  params_m: 60
+
+yolo:
+  map_50: 0.86522
+  map_50_95: 0.69515
+  inference_ms: 24
+  params_m: 25
