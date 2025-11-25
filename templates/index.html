@@ -392,6 +392,9 @@
     <button class="tab-button active" onclick="switchTab(event, 'live-detection')">
       Live Detection
     </button>
+    <button class="tab-button" onclick="switchTab(event, 'live-video')">
+      Live Video
+    </button>
     <button class="tab-button" onclick="switchTab(event, 'model-comparison')">
       Model Comparison
     </button>
@@ -492,7 +495,57 @@
     {% endif %}
   </div>
 
-  <!-- Tab 2: Model Comparison -->
+  <!-- Tab 2: Live Video -->
+  <div id="live-video" class="tab-content">
+    <div class="card">
+      <h2>Real-Time Webcam Detection</h2>
+      <p style="color: #e0e0e0; margin-bottom: 20px;">
+        Stream video from your webcam with live object detection. Select a model and click Start to begin.
+      </p>
+      
+      <div style="background: #2d2d50; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <p style="color: #fbbf24; margin: 0; font-weight: 600;">⚠️ WSL Note:</p>
+        <p style="color: #e0e0e0; margin: 5px 0 0 0; font-size: 14px;">
+          If running on WSL (Windows Subsystem for Linux), webcam access may not work. 
+          For best results, run the app directly on Windows or use the "Live Detection" tab with uploaded images.
+        </p>
+      </div>
+      
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="video-model">Select Detection Model</label>
+        <select id="video-model" required>
+          <option value="faster_rcnn">Faster R-CNN</option>
+          <option value="yolov8n" selected>YOLOv8 Nano (Recommended for real-time)</option>
+          <option value="yolov8m">YOLOv8 Medium</option>
+          <option value="yolo11l">YOLO11 Large</option>
+        </select>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button id="start-video-btn" onclick="startVideo()" style="flex: 1; padding: 14px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+          📹 Start Video
+        </button>
+        <button id="stop-video-btn" onclick="stopVideo()" disabled style="flex: 1; padding: 14px 30px; background: #dc2626; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; opacity: 0.5;">
+          ⏹️ Stop Video
+        </button>
+      </div>
+      
+      <div id="video-container" style="display: none; margin-top: 20px;">
+        <div style="background: #252540; padding: 20px; border-radius: 10px; border: 2px solid #667eea;">
+          <h3 style="margin-top: 0; color: #ffffff;">Live Feed</h3>
+          <img id="video-stream" src="" alt="Video Stream" style="width: 100%; max-width: 800px; border-radius: 8px; display: block; margin: 0 auto;">
+          <p id="video-status" style="color: #4ade80; margin-top: 10px; text-align: center;">● Live</p>
+        </div>
+      </div>
+      
+      <div id="video-placeholder" style="margin-top: 20px; padding: 60px 20px; background: #252540; border-radius: 10px; text-align: center; border: 2px dashed #4a4a6a;">
+        <p style="color: #b0b0c0; font-size: 18px; margin: 0;">Select a model and click "Start Video" to begin</p>
+        <p style="color: #b0b0c0; font-size: 14px; margin-top: 10px;">Make sure your webcam is connected and permissions are granted</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Model Comparison -->
   <div id="model-comparison" class="tab-content">
     <div class="card">
       <h2>Compare All Models Side-by-Side</h2>
@@ -733,6 +786,71 @@
         selectInput.selectedIndex = 0;
       }
     }
+  }
+  
+  // Live video functionality
+  let videoActive = false;
+  
+  async function startVideo() {
+    const modelSelect = document.getElementById('video-model');
+    const selectedModel = modelSelect.value;
+    
+    // Set the model on the backend
+    try {
+      const response = await fetch('/set_video_model', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model: selectedModel })
+      });
+      
+      const data = await response.json();
+      if (!data.success) {
+        alert('Failed to set model');
+        return;
+      }
+    } catch (error) {
+      console.error('Error setting model:', error);
+      alert('Failed to connect to server');
+      return;
+    }
+    
+    // Show video container and hide placeholder
+    document.getElementById('video-container').style.display = 'block';
+    document.getElementById('video-placeholder').style.display = 'none';
+    
+    // Set video stream source
+    const videoStream = document.getElementById('video-stream');
+    videoStream.src = '/video_feed?' + new Date().getTime();
+    
+    // Update button states
+    document.getElementById('start-video-btn').disabled = true;
+    document.getElementById('start-video-btn').style.opacity = '0.5';
+    document.getElementById('stop-video-btn').disabled = false;
+    document.getElementById('stop-video-btn').style.opacity = '1';
+    document.getElementById('video-model').disabled = true;
+    
+    videoActive = true;
+  }
+  
+  function stopVideo() {
+    // Stop video stream
+    const videoStream = document.getElementById('video-stream');
+    videoStream.src = '';
+    
+    // Hide video container and show placeholder
+    document.getElementById('video-container').style.display = 'none';
+    document.getElementById('video-placeholder').style.display = 'block';
+    
+    // Update button states
+    document.getElementById('start-video-btn').disabled = false;
+    document.getElementById('start-video-btn').style.opacity = '1';
+    document.getElementById('stop-video-btn').disabled = true;
+    document.getElementById('stop-video-btn').style.opacity = '0.5';
+    document.getElementById('video-model').disabled = false;
+    
+    videoActive = false;
   }
 </script>
 </body>

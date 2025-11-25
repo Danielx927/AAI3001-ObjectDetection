@@ -13,9 +13,11 @@ try:
 except ImportError:
     yaml = None
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, Response, jsonify
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageDraw, ImageFont
+import cv2
+import numpy as np
 
 try:
     from ultralytics import YOLO
@@ -164,17 +166,17 @@ AVAILABLE_MODELS = {
     },
     "yolov8n": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "yolo/runs/detect/train3/weights", "best.pt"),
+        "path": os.path.join(BASE_DIR, "yolo", "yolov8n.pt"),
         "display_name": "YOLOv8 Nano"
     },
     "yolov8m": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "runs", "fruits_yolov8m", "weights", "best.pt"),
+        "path": os.path.join(BASE_DIR, "yolo", "yolov8m.pt"),
         "display_name": "YOLOv8 Medium"
     },
     "yolo11l": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "runs", "fruits_yolo11l2", "weights", "best.pt"),
+        "path": os.path.join(BASE_DIR, "yolo", "yolo11l.pt"),
         "display_name": "YOLO11 Large"
     },
 }
@@ -182,11 +184,21 @@ AVAILABLE_MODELS = {
 # Device for models
 faster_rcnn_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 loaded_models = {}  # Cache for loaded models
+current_video_model = "faster_rcnn"  # Default model for video stream
 
 # Debug information to help verify that the model is linked correctly
 print("Faster-RCNN weights path:", FASTER_RCNN_WEIGHTS)
 print("Faster-RCNN weights exist:", os.path.exists(FASTER_RCNN_WEIGHTS))
 print("rcnn_module imported:", rcnn_module is not None)
+
+# Debug YOLO model paths
+print("\nYOLO Model Paths:")
+for model_key, model_info in AVAILABLE_MODELS.items():
+    if model_info["type"] == "yolo":
+        print(f"{model_info['display_name']} path:", model_info['path'])
+        print(f"{model_info['display_name']} exists:", os.path.exists(model_info['path']))
+
+print()  # Empty line for readability
 
 if os.path.exists(FASTER_RCNN_WEIGHTS):
     try:
@@ -362,6 +374,23 @@ def load_model(model_key):
                         state_dict = checkpoint.get("model") or checkpoint.get("state_dict") or checkpoint
                     else:
                         state_dict = checkpoint
+                    
+                    # Clean "module." prefixes if they exist
+                    cleaned_state_dict = {}
+                    if isinstance(state_dict, dict):
+                        for k, v in state_dict.items():
+                            if not isinstance(k, str):
+                                continue
+                            if k.startswith("module."):
+                                key = k[7:]
+                            else:
+                                key = k
+                            cleaned_state_dict[key] = v
+                    else:
+                        cleaned_state_dict = state_dict
+                    
+                    if isinstance(cleaned_state_dict, dict):
+                        model.load_state_dict(cleaned_state_dict, strict=False)
                 else:
                     model = fasterrcnn_resnet50_fpn(weights=None, num_classes=len(CLASS_NAMES) + 1)
                     if isinstance(checkpoint, dict):
@@ -395,7 +424,7 @@ def load_model(model_key):
                 print("Warning: could not adjust Faster-RCNN NMS threshold:", _e)
 
             loaded_models[model_key] = model
-            print(f"Model '{model_key}' loaded successfully.")
+            print(f"Model '{model_key}' ({model_info['display_name']}) loaded successfully.")
             return model
             
         elif model_type == "yolo":
@@ -405,7 +434,7 @@ def load_model(model_key):
             
             model = YOLO(model_path)
             loaded_models[model_key] = model
-            print(f"Model '{model_key}' loaded successfully.")
+            print(f"Model '{model_key}' ({model_info['display_name']}) loaded successfully.")
             return model
             
     except Exception as e:
@@ -726,6 +755,195 @@ def get_performance_metrics():
             "inference_time": 12,
         },
     }
+
+
+@app.route("/set_video_model", methods=["POST"])
+def set_video_model():
+    """Set the model for video streaming."""
+    global current_video_model
+    data = request.get_json()
+    model_key = data.get("model", "faster_rcnn")
+    
+    if model_key in AVAILABLE_MODELS:
+        current_video_model = model_key
+        # Preload the model
+        load_model(model_key)
+        return jsonify({"success": True, "model": model_key})
+    return jsonify({"success": False, "error": "Invalid model"})
+
+
+def generate_frames():
+    """Generate video frames with real-time object detection."""
+    camera = None
+    
+    # Try multiple camera indices (WSL/Windows compatibility)
+    for camera_index in [0, 1, -1]:
+        camera = cv2.VideoCapture(camera_index)
+        if camera.isOpened():
+            print(f"Successfully opened camera at index {camera_index}")
+            break
+        camera.release()
+    
+    if not camera or not camera.isOpened():
+        print("Error: Could not open webcam. WSL may not have direct webcam access.")
+        print("Tip: Try running the app on Windows directly or use the Live Detection tab with uploaded images.")
+        # Send an error frame
+        error_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(error_frame, "Webcam not accessible", (50, 240), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(error_frame, "Try running on Windows or use Live Detection tab", (20, 280), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        ret, buffer = cv2.imencode('.jpg', error_frame)
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        return
+    
+    try:
+        while True:
+            success, frame = camera.read()
+            if not success:
+                break
+            
+            # Run detection on the frame
+            detections = detect_frame(frame, current_video_model)
+            
+            # Draw bounding boxes on frame
+            annotated_frame = draw_boxes_on_frame(frame, detections)
+            
+            # Encode frame to JPEG
+            ret, buffer = cv2.imencode('.jpg', annotated_frame)
+            if not ret:
+                continue
+                
+            frame_bytes = buffer.tobytes()
+            
+            # Yield frame in multipart format
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+    finally:
+        if camera:
+            camera.release()
+            print("Camera released")
+
+
+def detect_frame(frame, model_key):
+    """Run detection on a single video frame."""
+    model_info = AVAILABLE_MODELS.get(model_key)
+    if not model_info:
+        return []
+    
+    model = load_model(model_key)
+    if model is None:
+        return []
+    
+    model_type = model_info["type"]
+    detections = []
+    
+    try:
+        if model_type == "rcnn":
+            # Convert BGR to RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            pil_image = Image.fromarray(rgb_frame)
+            
+            transform = T.ToTensor()
+            img_tensor = transform(pil_image).to(faster_rcnn_device)
+
+            with torch.no_grad():
+                outputs = model([img_tensor])[0]
+
+            boxes = outputs.get("boxes", [])
+            labels = outputs.get("labels", [])
+            scores = outputs.get("scores", [])
+
+            for box, label_id, score in zip(boxes, labels, scores):
+                score = float(score)
+                if score < 0.5:  # Lower threshold for real-time
+                    continue
+
+                idx = int(label_id) - 1
+                if 0 <= idx < len(CLASS_NAMES):
+                    label = CLASS_NAMES[idx]
+                else:
+                    label = f"class_{int(label_id)}"
+
+                x1, y1, x2, y2 = box.tolist()
+                detections.append({
+                    "label": label,
+                    "score": score,
+                    "box": [int(x1), int(y1), int(x2), int(y2)],
+                })
+                
+        elif model_type == "yolo":
+            # YOLO can work directly with cv2 frames
+            results = model(frame, verbose=False)[0]
+
+            for box in results.boxes:
+                x1, y1, x2, y2 = box.xyxy[0].tolist()
+                score = float(box.conf[0])
+                cls_id = int(box.cls[0])
+
+                if score < 0.5:  # Lower threshold for real-time
+                    continue
+
+                if 0 <= cls_id < len(CLASS_NAMES):
+                    label = CLASS_NAMES[cls_id]
+                else:
+                    label = f"class_{cls_id}"
+
+                detections.append({
+                    "label": label,
+                    "score": score,
+                    "box": [int(x1), int(y1), int(x2), int(y2)],
+                })
+    except Exception as e:
+        print(f"Error during frame detection: {e}")
+    
+    return detections
+
+
+def draw_boxes_on_frame(frame, detections):
+    """Draw bounding boxes on a video frame."""
+    annotated = frame.copy()
+    
+    for det in detections:
+        box = det["box"]
+        label = det["label"]
+        score = det["score"]
+        
+        x1, y1, x2, y2 = box
+        
+        # Draw rectangle
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        
+        # Prepare text
+        text = f"{label} {score:.2f}"
+        
+        # Get text size
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.6
+        thickness = 2
+        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
+        
+        # Draw background rectangle for text
+        cv2.rectangle(annotated, 
+                     (x1, y1 - text_height - baseline - 5), 
+                     (x1 + text_width, y1), 
+                     (0, 255, 0), 
+                     -1)
+        
+        # Draw text
+        cv2.putText(annotated, text, (x1, y1 - baseline - 5), 
+                   font, font_scale, (0, 0, 0), thickness)
+    
+    return annotated
+
+
+@app.route("/video_feed")
+def video_feed():
+    """Video streaming route."""
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == "__main__":
