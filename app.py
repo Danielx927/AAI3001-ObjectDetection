@@ -174,7 +174,7 @@ AVAILABLE_MODELS = {
     },
     "yolo11l": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "runs", "fruit_yolo11l", "weights", "best.pt"),
+        "path": os.path.join(BASE_DIR, "runs", "fruits_yolo11l2", "weights", "best.pt"),
         "display_name": "YOLO11 Large"
     },
 }
