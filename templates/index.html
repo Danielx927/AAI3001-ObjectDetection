@@ -230,6 +230,10 @@
       font-size: 16px;
       color: #ffffff;
     }
+
+    .selected-detection-row {
+      background: #33335a !important;
+    }
     
     .detection-table {
       width: 100%;
@@ -447,22 +451,37 @@
             <h4>Original Image</h4>
           </div>
         </div>
-        <div class="result-item">
-          <img src="{{ live_result.result_url }}" alt="Detection Result">
-          <div class="result-info">
-            <h4>Detection Output</h4>
-            <div style="display: flex; gap: 15px; margin-top: 10px;">
-              <div class="stat-box" style="flex: 1;">
-                <div class="stat-label">Detections</div>
-                <div class="stat-value">{{ live_result.detections|length }}</div>
-              </div>
-              <div class="stat-box" style="flex: 1;">
-                <div class="stat-label">Avg Confidence</div>
-                <div class="stat-value">{{ '%.1f%%' | format(live_result.avg_confidence * 100) }}</div>
-              </div>
-              <div class="stat-box" style="flex: 1;">
-                <div class="stat-label">Inference Time</div>
-                <div class="stat-value">{{ live_result.inference_time }}ms</div>
+          <div class="result-item">
+            <!-- Container with overlay for drawing bounding boxes -->
+            <div id="live-detection-container" style="position: relative; display: inline-block; width: 100%;">
+              <img
+                id="live-detection-image"
+                src="{{ live_result.result_url }}"
+                alt="Detection Result"
+                style="width: 100%; height: auto; display: block;"
+              >
+              <!-- Transparent layer where JS will draw the highlight box -->
+              <div
+                id="live-bbox-layer"
+                style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none;"
+              ></div>
+            </div>
+
+            <div class="result-info">
+              <h4>Detection Output</h4>
+              <div style="display: flex; gap: 15px; margin-top: 10px;">
+                <div class="stat-box" style="flex: 1;">
+                  <div class="stat-label">Detections</div>
+                  <div class="stat-value">{{ live_result.detections|length }}</div>
+                </div>
+                <div class="stat-box" style="flex: 1;">
+                  <div class="stat-label">Avg Confidence</div>
+                  <div class="stat-value">{{ '%.1f%%' | format(live_result.avg_confidence * 100) }}</div>
+                </div>
+                <div class="stat-box" style="flex: 1;">
+                  <div class="stat-label">Inference Time</div>
+                  <div class="stat-value">{{ live_result.inference_time }}ms</div>
+                </div>
               </div>
             </div>
           </div>
@@ -470,22 +489,33 @@
       </div>
 
       <h3>Detected Objects</h3>
-      <table class="detection-table">
+      <table id="live-detections-table" class="detection-table">
         <thead>
           <tr>
             <th>Object</th>
             <th>Confidence</th>
+            <th>Freshness</th>
             <th>Bounding Box</th>
           </tr>
         </thead>
         <tbody>
           {% for det in live_result.detections %}
-          <tr>
+          <tr
+            class="live-detection-row"
+            data-index="{{ loop.index0 }}"
+            onclick="highlightLiveDetection({{ loop.index0 }})"
+          >
             <td><strong>{{ det.label|capitalize }}</strong></td>
             <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
+            <td>
+              {{ det.freshness|default('Unknown')|capitalize }}
+              {% if det.freshness_score is defined %}
+                ({{ '%.1f%%' | format(det.freshness_score * 100) }})
+              {% endif %}
+            </td>
             <td style="color: #b0b0c0; font-size: 12px;">
               [{{ '%.0f' | format(det.box[0]) }}, {{ '%.0f' | format(det.box[1]) }}, 
-               {{ '%.0f' | format(det.box[2]) }}, {{ '%.0f' | format(det.box[3]) }}]
+              {{ '%.0f' | format(det.box[2]) }}, {{ '%.0f' | format(det.box[3]) }}]
             </td>
           </tr>
           {% endfor %}
@@ -584,8 +614,22 @@
         {% for result in comparison_results.models %}
         <div class="card" style="margin: 0;">
           <h3 style="margin-top: 0;">{{ result.model_name }}</h3>
-          <img src="{{ result.result_url }}" alt="{{ result.model_name }}" style="width: 100%; border-radius: 8px;">
-          
+              <div class="comparison-image-container"
+                  data-model-index="{{ loop.index0 }}"
+                  style="position: relative; display: inline-block; width: 100%;">
+                <img
+                  class="comparison-detection-image"
+                  data-model-index="{{ loop.index0 }}"
+                  src="{{ result.result_url }}"
+                  alt="{{ result.model_name }}"
+                  style="width: 100%; border-radius: 8px; display: block;"
+                >
+                <div
+                  class="comparison-bbox-layer"
+                  data-model-index="{{ loop.index0 }}"
+                  style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; border-radius: 8px;"
+                ></div>
+              </div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px;">
             <div class="stat-box">
               <div class="stat-label">Objects</div>
@@ -601,26 +645,46 @@
             </div>
           </div>
 
-          <details style="margin-top: 15px;">
-            <summary style="cursor: pointer; font-weight: 600; color: #667eea;">View Detections</summary>
-            <table class="detection-table" style="margin-top: 10px; font-size: 13px;">
-              <thead>
-                <tr>
-                  <th>Object</th>
-                  <th>Confidence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for det in result.detections %}
-                <tr>
-                  <td>{{ det.label|capitalize }}</td>
-                  <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </details>
-        </div>
+            <details style="margin-top: 15px;">
+              <summary style="cursor: pointer; font-weight: 600; color: #667eea;">View Detections</summary>
+
+              {# capture the outer loop index in a variable #}
+              {% set model_index = loop.index0 %}
+
+              <table
+                class="detection-table comparison-detections-table"
+                style="margin-top: 10px; font-size: 13px;"
+                data-model-index="{{ model_index }}"
+              >
+                <thead>
+                  <tr>
+                    <th>Object</th>
+                    <th>Confidence</th>
+                    <th>Freshness</th>  {# NEW COLUMN #}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for det in result.detections %}
+                  <tr
+                    class="comparison-detection-row"
+                    data-model-index="{{ model_index }}"
+                    data-det-index="{{ loop.index0 }}"
+                    onclick="highlightComparisonDetection({{ model_index }}, {{ loop.index0 }})"
+                  >
+                    <td>{{ det.label|capitalize }}</td>
+                    <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
+                    <td>
+                      {{ det.freshness|default('Unknown')|capitalize }}
+                      {% if det.freshness_score is defined %}
+                        ({{ '%.1f%%' | format(det.freshness_score * 100) }})
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </details>
+          </div>
         {% endfor %}
       </div>
 
@@ -851,6 +915,158 @@
     document.getElementById('video-model').disabled = false;
     
     videoActive = false;
+  }
+
+  // ==========================
+  // Live Detection: row → box
+  // ==========================
+
+  // Build a JS array of bounding boxes from Jinja
+  // Each box is [x1, y1, x2, y2] in original image coordinates
+  const liveDetections = [
+    {% if live_result and live_result.detections %}
+      {% for det in live_result.detections %}
+        [{{ det.box[0]|int }}, {{ det.box[1]|int }}, {{ det.box[2]|int }}, {{ det.box[3]|int }}]{% if not loop.last %},{% endif %}
+      {% endfor %}
+    {% endif %}
+  ];
+
+  function highlightLiveDetection(index) {
+    const img = document.getElementById('live-detection-image');
+    const overlay = document.getElementById('live-bbox-layer');
+
+    if (!img || !overlay) return;
+    if (!liveDetections || !liveDetections[index]) return;
+
+    // Get displayed size vs original size
+    const rect = img.getBoundingClientRect();
+    const displayedWidth = rect.width;
+    const displayedHeight = rect.height;
+
+    const naturalWidth = img.naturalWidth || displayedWidth;
+    const naturalHeight = img.naturalHeight || displayedHeight;
+
+    const scaleX = displayedWidth / naturalWidth;
+    const scaleY = displayedHeight / naturalHeight;
+
+    const box = liveDetections[index];
+    const x1 = box[0] * scaleX;
+    const y1 = box[1] * scaleY;
+    const x2 = box[2] * scaleX;
+    const y2 = box[3] * scaleY;
+
+    const w = x2 - x1;
+    const h = y2 - y1;
+
+    // Clear previous highlight(s)
+    overlay.innerHTML = '';
+
+    // Draw new highlight box
+    const boxDiv = document.createElement('div');
+    boxDiv.style.position = 'absolute';
+    boxDiv.style.left = x1 + 'px';
+    boxDiv.style.top = y1 + 'px';
+    boxDiv.style.width = w + 'px';
+    boxDiv.style.height = h + 'px';
+    boxDiv.style.border = '3px solid #ffcc00';
+    boxDiv.style.boxSizing = 'border-box';
+    boxDiv.style.pointerEvents = 'none';
+    boxDiv.style.borderRadius = '6px';
+    boxDiv.style.boxShadow = '0 0 10px rgba(255, 204, 0, 0.7)';
+    overlay.appendChild(boxDiv);
+
+    // Visually highlight the selected table row
+    const rows = document.querySelectorAll('#live-detections-table tbody tr');
+    rows.forEach((row, i) => {
+      if (i === index) {
+        row.classList.add('selected-detection-row');
+      } else {
+        row.classList.remove('selected-detection-row');
+      }
+    });
+  }
+
+    // ==============================
+  // Model Comparison: row → box
+  // ==============================
+
+  // 2D array of bounding boxes:
+  // comparisonDetections[modelIndex][detIndex] = [x1, y1, x2, y2]
+  const comparisonDetections = [
+    {% if comparison_results and comparison_results.models %}
+      {% for result in comparison_results.models %}
+        [
+          {% for det in result.detections %}
+            [{{ det.box[0]|int }}, {{ det.box[1]|int }}, {{ det.box[2]|int }}, {{ det.box[3]|int }}]{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]{% if not loop.last %},{% endif %}
+      {% endfor %}
+    {% else %}
+      []
+    {% endif %}
+  ];
+
+  function highlightComparisonDetection(modelIndex, detIndex) {
+    if (!comparisonDetections[modelIndex] || !comparisonDetections[modelIndex][detIndex]) {
+      return;
+    }
+
+    // Find image & overlay for this model
+    const img = document.querySelector(
+      '.comparison-detection-image[data-model-index="' + modelIndex + '"]'
+    );
+    const overlay = document.querySelector(
+      '.comparison-bbox-layer[data-model-index="' + modelIndex + '"]'
+    );
+
+    if (!img || !overlay) return;
+
+    const rect = img.getBoundingClientRect();
+    const displayedWidth = rect.width;
+    const displayedHeight = rect.height;
+
+    const naturalWidth = img.naturalWidth || displayedWidth;
+    const naturalHeight = img.naturalHeight || displayedHeight;
+
+    const scaleX = displayedWidth / naturalWidth;
+    const scaleY = displayedHeight / naturalHeight;
+
+    const box = comparisonDetections[modelIndex][detIndex];
+    const x1 = box[0] * scaleX;
+    const y1 = box[1] * scaleY;
+    const x2 = box[2] * scaleX;
+    const y2 = box[3] * scaleY;
+
+    const w = x2 - x1;
+    const h = y2 - y1;
+
+    // Clear previous box for this model
+    overlay.innerHTML = '';
+
+    const boxDiv = document.createElement('div');
+    boxDiv.style.position = 'absolute';
+    boxDiv.style.left = x1 + 'px';
+    boxDiv.style.top = y1 + 'px';
+    boxDiv.style.width = w + 'px';
+    boxDiv.style.height = h + 'px';
+    boxDiv.style.border = '3px solid #ffcc00';
+    boxDiv.style.boxSizing = 'border-box';
+    boxDiv.style.pointerEvents = 'none';
+    boxDiv.style.borderRadius = '6px';
+    boxDiv.style.boxShadow = '0 0 10px rgba(255, 204, 0, 0.7)';
+    overlay.appendChild(boxDiv);
+
+    // Highlight the selected row for this model
+    const rows = document.querySelectorAll(
+      '.comparison-detection-row[data-model-index="' + modelIndex + '"]'
+    );
+    rows.forEach((row, i) => {
+      if (i === detIndex) {
+        row.classList.add('selected-detection-row');
+      } else {
+        row.classList.remove('selected-detection-row');
+      }
+    });
   }
 </script>
 </body>

@@ -8,3 +8,4 @@ __pycache__/
 models/faster_rcnn_fruits.pth
 /static/
 /static/
+models/resnet18_finetuned_2.pth
