@@ -166,17 +166,17 @@ AVAILABLE_MODELS = {
     },
     "yolov8n": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "yolo", "yolov8n.pt"),
+        "path": os.path.join(BASE_DIR, "runs", "fruits_yolov8n", "weights", "best.pt"),
         "display_name": "YOLOv8 Nano"
     },
     "yolov8m": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "yolo", "yolov8m.pt"),
+        "path": os.path.join(BASE_DIR, "runs", "fruits_yolov8m", "weights", "best.pt"),
         "display_name": "YOLOv8 Medium"
     },
     "yolo11l": {
         "type": "yolo",
-        "path": os.path.join(BASE_DIR, "yolo", "yolo11l.pt"),
+        "path": os.path.join(BASE_DIR, "runs", "fruits_yolov11l", "weights", "best.pt"),
         "display_name": "YOLO11 Large"
     },
 }
