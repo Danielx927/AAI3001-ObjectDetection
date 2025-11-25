@@ -1,0 +1,15 @@
+{
+  "map_50": 0.7929545751687312,
+  "map_75": 0.7045052328932017,
+  "map_50_95": 0.6329892036630177,
+  "mean_iou": 0.8935390215774182,
+  "recall_50": 0.8164383561643835,
+  "precision_50": 0.7286063569682152,
+  "false_positives": 111,
+  "false_negatives": 67,
+  "total_predictions": 409,
+  "total_ground_truths": 365,
+  "inference_time_ms": 0.0,
+  "model_name": "Faster R-CNN",
+  "confidence_threshold": 0.5
+}

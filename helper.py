@@ -157,7 +157,7 @@ def filter_and_extract_images_by_class(
     class_indices_to_keep,
     output_images_dir,
     output_labels_dir,
-    target_num_labels=300,
+    target_num_labels,
     image_extensions=(".jpg", ".jpeg", ".png")
 ):
     """ Filters and extracts images and labels containing specified class indices."""
