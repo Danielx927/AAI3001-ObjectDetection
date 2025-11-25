@@ -1,10 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Fruit Detection Demo</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Your main stylesheet -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+
+  <!-- Plotly (interactive charts + hover) -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <style>
+    /* --- small local helpers so the page works even if style.css is minimal --- */
+    .chart { width: 100%; height: 340px; }
+    .charts-grid { display:grid; grid-template-columns: 1fr; gap:16px }
+    @media (min-width: 980px){ .charts-grid { grid-template-columns: 1fr 1fr; } }
+    .toggle-row{display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+    .badge{padding:2px 8px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:.8rem}
+    .chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;margin:4px 6px 0 0;font-size:.8rem;border:1px solid #c7d2fe}
+    .row-note{margin-top:6px}
+
+    /* --- Metrics table styles (dark-friendly) --- */
+    .metrics-wrap { margin-top: 18px; }
+    .metrics-wrap h3 { margin: 0 0 8px 0; }
+    .metrics-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #1f2937;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .metrics-table th, .metrics-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #1f2937;
+      white-space: nowrap;
+    }
+    .metrics-table thead th {
+      background:#0b1220;     /* dark header bar */
+      color:#e5e7eb;
+      font-weight: 700;
+    }
+    .metrics-table tbody tr:nth-child(odd) td { background:#0a1020; color:#e5e7eb; }
+    .metrics-table tbody tr:nth-child(even) td { background:#0e1528; color:#e5e7eb; }
+    .metrics-table td.model { font-weight:600; }
+    .metrics-caption {
+      background:#0b1220; color:#cbd5e1; padding:6px 10px; border-radius: 8px 8px 0 0;
+      border:1px solid #1f2937; border-bottom: 0; margin-bottom: 0;
+      font-size: .92rem;
+    }
+    /* If you ever keep a "muted" class, make sure it's still readable */
+    .metrics-table tr.muted { opacity: 1 !important; }
+    .metrics-table tr.muted td, .metrics-table tr.muted th { color: #e5e7eb !important; }
+  </style>
 </head>
 <body>
 <div class="page-container">
@@ -13,78 +61,69 @@
     <p>Upload an image, compare Faster-RCNN and YOLO detections, and visualize how the models behave.</p>
   </header>
 
-  <!-- Upload form -->
+  <!-- 1) Upload -->
   <section class="card">
     <h2>1. Upload a fruit image</h2>
     <form action="{{ url_for('predict') }}" method="post" enctype="multipart/form-data" class="upload-form">
-      <input type="file" name="image" accept="image/*" required>
+      <input type="file" name="image" accept="image/*" required />
       <button type="submit">Run Detection</button>
     </form>
     <p class="hint">Supported formats: JPG, JPEG, PNG.</p>
   </section>
 
+  <!-- 2) Detections -->
   {% if uploaded_image_url %}
   <section class="card">
     <h2>2. Detection results</h2>
     <div class="image-row">
       <div class="image-col">
         <h3>Original</h3>
-        <img src="{{ uploaded_image_url }}" alt="Uploaded image">
+        <img src="{{ uploaded_image_url }}" alt="Uploaded image" />
       </div>
       <div class="image-col">
         <h3>Faster-RCNN</h3>
-        <img src="{{ rcnn_image_url }}" alt="Faster-RCNN detections">
+        <img src="{{ rcnn_image_url }}" alt="Faster-RCNN detections" />
       </div>
       <div class="image-col">
         <h3>YOLO</h3>
-        <img src="{{ yolo_image_url }}" alt="YOLO detections">
+        <img src="{{ yolo_image_url }}" alt="YOLO detections" />
       </div>
     </div>
   </section>
 
+  <!-- 3) Tables -->
   <section class="card">
     <h2>3. Detected fruits per model</h2>
     <div class="table-row">
       <div class="table-col">
         <h3>Faster-RCNN</h3>
         <table>
-          <thead>
-          <tr>
-            <th>Label</th>
-            <th>Confidence</th>
-            <th>Box (x1, y1, x2, y2)</th>
-          </tr>
-          </thead>
+          <thead><tr><th>Label</th><th>Confidence</th><th>Box (x1, y1, x2, y2)</th></tr></thead>
           <tbody>
-          {% for d in rcnn_detections %}
-          <tr>
-            <td>{{ d.label }}</td>
-            <td>{{ '%.2f'|format(d.score) }}</td>
-            <td>{{ d.box }}</td>
-          </tr>
-          {% endfor %}
+            {% for d in rcnn_detections %}
+            <tr>
+              <td>{{ d.label }}</td>
+              <td>{{ '%.2f'|format(d.score) }}</td>
+              <td>{{ d.box }}</td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
         <p class="metric">Avg confidence: {{ '%.3f'|format(rcnn_stats.avg_confidence) }}</p>
       </div>
+
       <div class="table-col">
         <h3>YOLO</h3>
         <table>
-          <thead>
-          <tr>
-            <th>Label</th>
-            <th>Confidence</th>
-            <th>Box (x1, y1, x2, y2)</th>
-          </tr>
-          </thead>
+          <thead><tr><th>Label</th><th>Confidence</th><th>Box (x1, y1, x2, y2)</th></tr></thead>
           <tbody>
-          {% for d in yolo_detections %}
-          <tr>
-            <td>{{ d.label }}</td>
-            <td>{{ '%.2f'|format(d.score) }}</td>
-            <td>{{ d.box }}</td>
-          </tr>
-          {% endfor %}
+            {% for d in yolo_detections %}
+            <tr>
+              <td>{{ d.label }}</td>
+              <td>{{ '%.2f'|format(d.score) }}</td>
+              <td>{{ d.box }}</td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
         <p class="metric">Avg confidence: {{ '%.3f'|format(yolo_stats.avg_confidence) }}</p>
@@ -93,41 +132,119 @@
   </section>
   {% endif %}
 
+  <!-- 4) Per-image chart (bars only) -->
   {% if uploaded_image_url %}
   <section class="card">
-    <h2>4. Visualizing what each model "sees"</h2>
-    <p>
-      This chart shows how many instances of each fruit class were detected by each model for this image.
-      It helps you see if one model is missing small fruits or over-detecting certain classes.
-    </p>
-    <canvas id="countChart"></canvas>
+    <h2>4. Visualizing what each model “sees”</h2>
+    <div class="toggle-row">
+      <span class="badge">This image</span>
+      <label style="display:inline-flex;gap:6px;align-items:center">
+        <input type="checkbox" id="togglePct"> Show as %
+      </label>
+      <label style="display:inline-flex;gap:6px;align-items:center">
+        <input type="checkbox" id="toggleZero"> Hide zero-only classes
+      </label>
+      <label style="display:inline-flex;gap:6px;align-items:center">
+        Sort:
+        <select id="sortBy">
+          <option value="total" selected>Total desc</option>
+          <option value="fr">Faster-RCNN desc</option>
+          <option value="yolo">YOLO desc</option>
+          <option value="az">A → Z</option>
+        </select>
+      </label>
+    </div>
+    <div id="countChart" class="chart"></div>
+    <div id="zeroNote" class="row-note hint"></div>
   </section>
   {% endif %}
 
+  <!-- 5) Overall comparison -->
   <section class="card">
     <h2>5. Faster-RCNN vs YOLO (overall comparison)</h2>
-    <div class="comparison-layout">
-      <div class="comparison-text">
-        <h3>Conceptual differences</h3>
-        <ul>
-          <li><strong>Faster-RCNN</strong> is a two-stage detector: proposes regions, then classifies them. Higher accuracy but slower.</li>
-          <li><strong>YOLO</strong> is a single-stage detector: predicts boxes and classes in one pass. Much faster and good for real-time.</li>
-          <li>On your fruit dataset, Faster-RCNN may give better mAP and tighter boxes;
-            YOLO is better for live camera demos and low-latency applications.</li>
-        </ul>
-
-        <h3>Model behaviour on fruits</h3>
-        <ul>
-          <li>Faster-RCNN handles <strong>cluttered baskets</strong> and overlapping fruits better.</li>
-          <li>YOLO may <strong>miss very small fruits</strong> but quickly detects larger, central fruits.</li>
-          <li>Higher confidence thresholds clean YOLO’s detections quickly; Faster-RCNN may keep more true positives.</li>
-        </ul>
+    <div class="charts-grid">
+      <div>
+        <div class="badge" style="margin-bottom:6px">Dataset-level</div>
+        <div id="mapChart" class="chart"></div>
       </div>
-
-      <div class="comparison-charts">
-        <canvas id="mapChart"></canvas>
-        <canvas id="speedChart"></canvas>
+      <div>
+        <div class="badge" style="margin-bottom:6px">Confidence vs Latency</div>
+        <div id="confLatencyChart" class="chart"></div>
       </div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="badge" style="margin-bottom:6px">Trade-off</div>
+      <div id="tradeoffChart" class="chart"></div>
+    </div>
+
+    <!-- NEW: Model metrics table (right under 5) -->
+    {% set fr_map50  = comparison_metrics['map_50']['Faster-RCNN'] %}
+    {% set fr_map959 = comparison_metrics['map_50_95']['Faster-RCNN'] %}
+    {% set fr_ms     = comparison_metrics['inference_ms']['Faster-RCNN'] %}
+    {% set fr_params = comparison_metrics['params_m']['Faster-RCNN'] %}
+    {% set fr_fps    = (1000.0 / fr_ms) if fr_ms else 0 %}
+    {% set fr_eff_ms = (fr_map959 / fr_ms) if fr_ms else 0 %}
+    {% set fr_eff_pm = (fr_map959 / fr_params) if fr_params else 0 %}
+
+    {% set yo_map50  = comparison_metrics['map_50']['YOLO'] %}
+    {% set yo_map959 = comparison_metrics['map_50_95']['YOLO'] %}
+    {% set yo_ms     = comparison_metrics['inference_ms']['YOLO'] %}
+    {% set yo_params = comparison_metrics['params_m']['YOLO'] %}
+    {% set yo_fps    = (1000.0 / yo_ms) if yo_ms else 0 %}
+    {% set yo_eff_ms = (yo_map959 / yo_ms) if yo_ms else 0 %}
+    {% set yo_eff_pm = (yo_map959 / yo_params) if yo_params else 0 %}
+
+    <div class="metrics-wrap">
+      <div class="metrics-caption">Model metrics summary</div>
+      <table class="metrics-table">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>mAP@0.5</th>
+            <th>mAP@0.5:0.95</th>
+            <th>Inference (ms)</th>
+            <th>FPS</th>
+            <th>mAP@0.5:0.95 per ms</th>
+            <th>mAP@0.5:0.95 per M params</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="model">Faster-RCNN</td>
+            <td>{{ '%.3f'|format(fr_map50) }}</td>
+            <td>{{ '%.3f'|format(fr_map959) }}</td>
+            <td>{{ fr_ms }}</td>
+            <td>{{ '%.1f'|format(fr_fps) }}</td>
+            <td>{{ '%.4f'|format(fr_eff_ms) }}</td>
+            <td>{{ '%.4f'|format(fr_eff_pm) }}</td>
+          </tr>
+          <tr>
+            <td class="model">YOLO</td>
+            <td>{{ '%.3f'|format(yo_map50) }}</td>
+            <td>{{ '%.3f'|format(yo_map959) }}</td>
+            <td>{{ yo_ms }}</td>
+            <td>{{ '%.1f'|format(yo_fps) }}</td>
+            <td>{{ '%.4f'|format(yo_eff_ms) }}</td>
+            <td>{{ '%.4f'|format(yo_eff_pm) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:16px">
+      <h3>Conceptual differences</h3>
+      <ul>
+        <li><strong>Faster-RCNN</strong> is a two-stage detector: proposes regions, then classifies them. Higher accuracy, slower.</li>
+        <li><strong>YOLO</strong> is a single-stage detector: predicts boxes + classes in one pass—great for real-time.</li>
+        <li>On your fruit dataset, Faster-RCNN may give tighter boxes; YOLO is better for live demos/low latency.</li>
+      </ul>
+
+      <h3>Model behaviour on fruits</h3>
+      <ul>
+        <li>Faster-RCNN handles <strong>cluttered baskets</strong> and overlapping fruits better.</li>
+        <li>YOLO may <strong>miss very small fruits</strong> but quickly detects larger, central fruits.</li>
+        <li>Higher thresholds clean YOLO’s detections quickly; Faster-RCNN may retain more true positives.</li>
+      </ul>
     </div>
   </section>
 
@@ -136,95 +253,192 @@
   </footer>
 </div>
 
+<!-- ================== Charts (Plotly) ================== -->
 <script>
+  // Colors
+  const C = {
+    fr:      'rgba(59,130,246,0.85)',  // Faster-RCNN
+    yolo:    'rgba(236,72,153,0.85)',  // YOLO
+    green:   'rgba(34,197,94,0.85)',
+    amber:   'rgba(245,158,11,0.9)',
+    grid:    'rgba(148,163,184,0.15)'
+  };
+
+  // ========== 4) Per-image counts (bars only) ==========
   {% if uploaded_image_url %}
-  const rcnnCounts = {{ rcnn_stats.per_class_counts | tojson }};
-  const yoloCounts = {{ yolo_stats.per_class_counts | tojson }};
-  const allLabels = Array.from(new Set([
-    ...Object.keys(rcnnCounts),
-    ...Object.keys(yoloCounts)
-  ])).sort();
+  const rawFr = {{ rcnn_stats.per_class_counts | tojson | safe }};
+  const rawYo = {{ yolo_stats.per_class_counts | tojson | safe }};
 
-  const rcnnData = allLabels.map(l => rcnnCounts[l] || 0);
-  const yoloData = allLabels.map(l => yoloCounts[l] || 0);
+  const unionLabels = () => Array.from(new Set([...Object.keys(rawFr||{}), ...Object.keys(rawYo||{})]));
+  const totalsFor = (labs, fr, yo) => labs.map((_,i)=> (fr[i]||0)+(yo[i]||0));
+  const toPct = (vals, totals) => vals.map((v,i)=> totals[i] ? +(v*100/totals[i]).toFixed(1) : 0);
 
-  const ctxCounts = document.getElementById('countChart');
-  new Chart(ctxCounts, {
-    type: 'bar',
-    data: {
-      labels: allLabels,
-      datasets: [
-        { label: 'Faster-RCNN', data: rcnnData },
-        { label: 'YOLO', data: yoloData }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Detected fruit count per model' }
-      },
-      scales: { y: { beginAtZero: true } }
+  function getArrays(sortedBy='total', hideZero=false){
+    let labs = unionLabels();
+    if (labs.length === 0) return {labels:[], fr:[], yo:[], totals:[]};
+
+    let fr = labs.map(l=> rawFr[l]||0);
+    let yo = labs.map(l=> rawYo[l]||0);
+    let totals = totalsFor(labs, fr, yo);
+
+    if (hideZero){
+      const keep = labs.map((_,i)=> (fr[i]!==0 || yo[i]!==0));
+      labs   = labs.filter((_,i)=> keep[i]);
+      fr     = fr.filter((_,i)=> keep[i]);
+      yo     = yo.filter((_,i)=> keep[i]);
+      totals = totals.filter((_,i)=> keep[i]);
     }
-  });
+
+    const idx = labs.map((_,i)=> i);
+    idx.sort((a,b)=>{
+      switch(sortedBy){
+        case 'fr':   return fr[b]-fr[a] || labs[a].localeCompare(labs[b]);
+        case 'yolo': return yo[b]-yo[a] || labs[a].localeCompare(labs[b]);
+        case 'az':   return labs[a].localeCompare(labs[b]);
+        case 'total':
+        default:     return totals[b]-totals[a] || labs[a].localeCompare(labs[b]);
+      }
+    });
+    labs   = idx.map(i=> labs[i]);
+    fr     = idx.map(i=> fr[i]);
+    yo     = idx.map(i=> yo[i]);
+    totals = idx.map(i=> totals[i]);
+    return {labels: labs, fr, yo, totals};
+  }
+
+  const countDiv = document.getElementById('countChart');
+  const zeroNote = document.getElementById('zeroNote');
+  const elPct    = document.getElementById('togglePct');
+  const elZero   = document.getElementById('toggleZero');
+  const elSort   = document.getElementById('sortBy');
+
+  function renderCount(){
+    const asPct  = elPct?.checked ?? false;
+    const hideZ  = elZero?.checked ?? false;
+    const sortBy = elSort?.value   ?? 'total';
+
+    const {labels, fr, yo, totals} = getArrays(sortBy, hideZ);
+
+    if (labels.length){
+      const missedFr = labels.filter((l,i)=> fr[i]===0 && yo[i]>0);
+      const missedYo = labels.filter((l,i)=> yo[i]===0 && fr[i]>0);
+      let html = '';
+      if (missedFr.length) html += `<div><strong>Faster-RCNN missed:</strong> ${missedFr.map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
+      if (missedYo.length) html += `<div><strong>YOLO missed:</strong> ${missedYo.map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
+      zeroNote.innerHTML = html || '';
+    } else {
+      zeroNote.innerHTML = '';
+    }
+
+    if (!labels.length){
+      countDiv.innerHTML = '<div style="opacity:.7;padding:12px;">No detections to visualize.</div>';
+      return;
+    }
+
+    const yFr = asPct ? toPct(fr, totals) : fr;
+    const yYo = asPct ? toPct(yo, totals) : yo;
+    const yTitle = asPct ? 'Percentage (%)' : 'Count';
+
+    const data = [
+      {type:'bar', name:'Faster-RCNN', x:labels, y:yFr, marker:{color:C.fr}},
+      {type:'bar', name:'YOLO',        x:labels, y:yYo, marker:{color:C.yolo}}
+    ];
+
+    Plotly.newPlot(countDiv, data, {
+      template:'plotly_white',
+      paper_bgcolor:'white',
+      plot_bgcolor:'white',
+      barmode:'group',
+      hovermode:'x unified',
+      margin:{l:60,r:20,t:10,b:50},
+      yaxis:{ title:yTitle, gridcolor:C.grid, range: asPct?[0,100]:undefined },
+      xaxis:{ tickangle:-15, gridcolor:C.grid },
+      legend:{orientation:'h', y:-0.2}
+    },{displayModeBar:true, responsive:true});
+  }
+
+  renderCount();
+  elPct?.addEventListener('change', renderCount);
+  elZero?.addEventListener('change', renderCount);
+  elSort?.addEventListener('change', renderCount);
   {% endif %}
 
-  const metrics = {{ comparison_metrics | tojson }};
+  // ========== 5a) Accuracy bars (dataset-level) ==========
+  const metrics = {{ comparison_metrics | tojson | safe }};
+  const mapDiv  = document.getElementById('mapChart');
 
-  const ctxMap = document.getElementById('mapChart');
-  new Chart(ctxMap, {
-    type: 'bar',
-    data: {
-      labels: ['mAP@0.5', 'mAP@0.5:0.95'],
-      datasets: [
-        {
-          label: 'Faster-RCNN',
-          data: [metrics.map_50["Faster-RCNN"], metrics.map_50_95["Faster-RCNN"]]
-        },
-        {
-          label: 'YOLO',
-          data: [metrics.map_50["YOLO"], metrics.map_50_95["YOLO"]]
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: {
-          display: true,
-          text: 'Accuracy comparison (replace with your real results)'
-        }
-      },
-      scales: { y: { beginAtZero: true, max: 1.0 } }
-    }
-  });
+  Plotly.newPlot(mapDiv, [
+    { type:'bar', orientation:'h', name:'Faster-RCNN',
+      x:[metrics.map_50['Faster-RCNN'], metrics.map_50_95['Faster-RCNN']],
+      y:['mAP@0.5','mAP@0.5:0.95'],
+      marker:{color:C.fr} },
+    { type:'bar', orientation:'h', name:'YOLO',
+      x:[metrics.map_50['YOLO'], metrics.map_50_95['YOLO']],
+      y:['mAP@0.5','mAP@0.5:0.95'],
+      marker:{color:C.yolo} }
+  ],{
+    template:'plotly_white',
+    paper_bgcolor:'white',
+    plot_bgcolor:'white',
+    barmode:'group',
+    hovermode:'y unified',
+    margin:{l:90,r:20,t:10,b:40},
+    xaxis:{ title:'mAP', range:[0,1], gridcolor:C.grid },
+    legend:{orientation:'h', y:-0.2}
+  },{displayModeBar:true, responsive:true});
 
-  const ctxSpeed = document.getElementById('speedChart');
-  new Chart(ctxSpeed, {
-    type: 'bar',
-    data: {
-      labels: ['Inference time (ms)', 'Parameters (M)'],
-      datasets: [
-        {
-          label: 'Faster-RCNN',
-          data: [metrics.inference_ms["Faster-RCNN"], metrics.params_m["Faster-RCNN"]]
-        },
-        {
-          label: 'YOLO',
-          data: [metrics.inference_ms["YOLO"], metrics.params_m["YOLO"]]
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'top' },
-        title: { display: true, text: 'Speed & model size comparison' }
-      },
-      scales: { y: { beginAtZero: true } }
-    }
-  });
+  // ========== 5b) Confidence vs Latency (dual-axis) ==========
+  const confLatencyDiv = document.getElementById('confLatencyChart');
+  const avgConfF = {{ rcnn_stats.avg_confidence | default(0) | float }};
+  const avgConfY = {{ yolo_stats.avg_confidence | default(0) | float }};
+  const infF     = metrics.inference_ms['Faster-RCNN'] ?? 0;
+  const infY     = metrics.inference_ms['YOLO'] ?? 0;
+
+  Plotly.newPlot(confLatencyDiv, [
+    { type:'bar', name:'Avg confidence', x:['Faster-RCNN','YOLO'], y:[avgConfF, avgConfY], marker:{color:C.green}, yaxis:'y' },
+    { type:'scatter', mode:'lines+markers', name:'Inference time (ms)', x:['Faster-RCNN','YOLO'], y:[infF, infY],
+      line:{color:C.amber, width:3}, marker:{size:8}, yaxis:'y2' }
+  ],{
+    template:'plotly_white',
+    paper_bgcolor:'white',
+    plot_bgcolor:'white',
+    hovermode:'x unified',
+    margin:{l:60,r:60,t:10,b:50},
+    yaxis: { title:'Avg confidence', range:[0,1], gridcolor:C.grid },
+    yaxis2:{ title:'ms', overlaying:'y', side:'right', rangemode:'tozero', gridcolor:C.grid },
+    legend:{orientation:'h', y:-0.2}
+  },{displayModeBar:true, responsive:true});
+
+  // ========== 5c) Trade-off bubble ==========
+  const tradeDiv = document.getElementById('tradeoffChart');
+  const paramFR  = metrics.params_m['Faster-RCNN'];
+  const paramYO  = metrics.params_m['YOLO'];
+  const mapFR95  = metrics.map_50_95['Faster-RCNN'];
+  const mapYO95  = metrics.map_50_95['YOLO'];
+
+  const speedFR  = infF  > 0 ? 1/infF : 0;
+  const speedYO  = infY  > 0 ? 1/infY : 0;
+  const maxSpeed = Math.max(speedFR, speedYO, 1e-6);
+  const sizeFR   = 40 * (speedFR / maxSpeed) + 10;
+  const sizeYO   = 40 * (speedYO / maxSpeed) + 10;
+
+  Plotly.newPlot(tradeDiv, [
+    { type:'scatter', mode:'markers+text', name:'Faster-RCNN',
+      x:[paramFR], y:[mapFR95], text:['Faster-RCNN'], textposition:'top center',
+      marker:{ size:[sizeFR], sizemode:'diameter', color:C.fr } },
+    { type:'scatter', mode:'markers+text', name:'YOLO',
+      x:[paramYO], y:[mapYO95], text:['YOLO'], textposition:'top center',
+      marker:{ size:[sizeYO], sizemode:'diameter', color:C.yolo } }
+  ],{
+    template:'plotly_white',
+    paper_bgcolor:'white',
+    plot_bgcolor:'white',
+    hovermode:'closest',
+    margin:{l:60,r:20,t:10,b:60},
+    xaxis:{ title:'Parameters (M)', gridcolor:C.grid },
+    yaxis:{ title:'mAP@0.5:0.95', range:[0,1], gridcolor:C.grid },
+    legend:{orientation:'h', y:-0.2}
+  },{displayModeBar:true, responsive:true});
 </script>
 </body>
 </html>
