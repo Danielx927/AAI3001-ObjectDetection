@@ -1,444 +1,739 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Fruit Detection Demo</title>
-
-  <!-- Your main stylesheet -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-
-  <!-- Plotly (interactive charts + hover) -->
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-
+  <meta charset="UTF-8">
+  <title>Fruit Detection System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
-    /* --- small local helpers so the page works even if style.css is minimal --- */
-    .chart { width: 100%; height: 340px; }
-    .charts-grid { display:grid; grid-template-columns: 1fr; gap:16px }
-    @media (min-width: 980px){ .charts-grid { grid-template-columns: 1fr 1fr; } }
-    .toggle-row{display:flex;gap:12px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-    .badge{padding:2px 8px;border-radius:999px;background:#1f2937;color:#cbd5e1;font-size:.8rem}
-    .chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;margin:4px 6px 0 0;font-size:.8rem;border:1px solid #c7d2fe}
-    .row-note{margin-top:6px}
-
-    /* --- Metrics table styles (dark-friendly) --- */
-    .metrics-wrap { margin-top: 18px; }
-    .metrics-wrap h3 { margin: 0 0 8px 0; }
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #0f0f1e;
+      color: #e0e0e0;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+      margin-bottom: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    }
+    
+    header h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    
+    header p {
+      margin: 10px 0 0;
+      color: #ffffff;
+      opacity: 0.95;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 30px;
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 5px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      border: 1px solid #2d2d44;
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 15px 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      color: #b0b0c0;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+    
+    .tab-button:hover {
+      background: #252540;
+      color: #ffffff;
+    }
+    
+    .tab-button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .card {
+      background: #1a1a2e;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      margin-bottom: 20px;
+      border: 1px solid #2d2d44;
+    }
+    
+    .card h2 {
+      margin: 0 0 20px;
+      font-size: 22px;
+      color: #ffffff;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    
+    .card h3 {
+      margin: 20px 0 10px;
+      font-size: 18px;
+      color: #e0e0e0;
+    }
+    
+    .upload-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    label {
+      font-weight: 600;
+      color: #e0e0e0;
+      font-size: 14px;
+    }
+    
+    input[type="file"] {
+      padding: 12px;
+      border: 2px dashed #4a4a6a;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #252540;
+      color: #e0e0e0;
+    }
+    
+    input[type="file"]:hover {
+      border-color: #667eea;
+      background: #2d2d50;
+    }
+    
+    select {
+      padding: 12px;
+      border: 1px solid #4a4a6a;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #252540;
+      color: #e0e0e0;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+    }
+    
+    button[type="submit"] {
+      padding: 14px 30px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    button[type="submit"]:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    .btn-clear {
+      padding: 14px 24px;
+      background: #dc2626;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    .btn-clear:hover {
+      background: #b91c1c;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+    }
+    
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .result-item {
+      border: 1px solid #2d2d44;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #252540;
+    }
+    
+    .result-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .result-info {
+      padding: 15px;
+      background: #1a1a2e;
+    }
+    
+    .result-info h4 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      color: #ffffff;
+    }
+    
+    .detection-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    
+    .detection-table th,
+    .detection-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #2d2d44;
+    }
+    
+    .detection-table th {
+      background: #252540;
+      font-weight: 600;
+      color: #ffffff;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+    
+    .detection-table td {
+      color: #e0e0e0;
+    }
+    
+    .detection-table tr:hover {
+      background: #252540;
+    }
+    
     .metrics-table {
       width: 100%;
       border-collapse: collapse;
-      border: 1px solid #1f2937;
-      border-radius: 10px;
-      overflow: hidden;
+      margin-top: 20px;
     }
-    .metrics-table th, .metrics-table td {
-      padding: 10px 12px;
+    
+    .metrics-table th,
+    .metrics-table td {
+      padding: 15px;
       text-align: left;
-      border-bottom: 1px solid #1f2937;
-      white-space: nowrap;
+      border-bottom: 1px solid #2d2d44;
     }
-    .metrics-table thead th {
-      background:#0b1220;     /* dark header bar */
-      color:#e5e7eb;
+    
+    .metrics-table th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 600;
+    }
+    
+    .metrics-table td {
+      font-size: 14px;
+      color: #e0e0e0;
+    }
+    
+    .metrics-table tr:hover {
+      background: #252540;
+    }
+    
+    .best-metric {
+      background: #1a4d2e !important;
+      font-weight: 600;
+      color: #4ade80;
+    }
+    
+    .metric-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    
+    .badge-success {
+      background: #1a4d2e;
+      color: #4ade80;
+    }
+    
+    .badge-info {
+      background: #1e3a5f;
+      color: #60a5fa;
+    }
+    
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .stat-box {
+      padding: 15px;
+      background: #252540;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #b0b0c0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .stat-value {
+      font-size: 24px;
       font-weight: 700;
+      color: #ffffff;
+      margin-top: 5px;
     }
-    .metrics-table tbody tr:nth-child(odd) td { background:#0a1020; color:#e5e7eb; }
-    .metrics-table tbody tr:nth-child(even) td { background:#0e1528; color:#e5e7eb; }
-    .metrics-table td.model { font-weight:600; }
-    .metrics-caption {
-      background:#0b1220; color:#cbd5e1; padding:6px 10px; border-radius: 8px 8px 0 0;
-      border:1px solid #1f2937; border-bottom: 0; margin-bottom: 0;
-      font-size: .92rem;
+    
+    .hint {
+      font-size: 13px;
+      color: #b0b0c0;
+      margin-top: 8px;
     }
-    /* If you ever keep a "muted" class, make sure it's still readable */
-    .metrics-table tr.muted { opacity: 1 !important; }
-    .metrics-table tr.muted td, .metrics-table tr.muted th { color: #e5e7eb !important; }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #b0b0c0;
+    }
+    
+    footer {
+      text-align: center;
+      padding: 30px 20px;
+      color: #b0b0c0;
+      font-size: 14px;
+      margin-top: 40px;
+    }
+    
+    details summary {
+      color: #e0e0e0;
+    }
+    
+    strong {
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
-<div class="page-container">
-  <header class="header">
-    <h1>Fruit Detection Explorer</h1>
-    <p>Upload an image, compare Faster-RCNN and YOLO detections, and visualize how the models behave.</p>
+<div class="container">
+  <header>
+    <h1>🍎 Fruit Detection System</h1>
+    <p>Advanced Object Detection with Multiple Deep Learning Models</p>
   </header>
 
-  <!-- 1) Upload -->
-  <section class="card">
-    <h2>1. Upload a fruit image</h2>
-    <form action="{{ url_for('predict') }}" method="post" enctype="multipart/form-data" class="upload-form">
-      <input type="file" name="image" accept="image/*" required />
-      <button type="submit">Run Detection</button>
-    </form>
-    <p class="hint">Supported formats: JPG, JPEG, PNG.</p>
-  </section>
+  <!-- Navigation Tabs -->
+  <div class="tabs">
+    <button class="tab-button active" onclick="switchTab(event, 'live-detection')">
+      Live Detection
+    </button>
+    <button class="tab-button" onclick="switchTab(event, 'model-comparison')">
+      Model Comparison
+    </button>
+    <button class="tab-button" onclick="switchTab(event, 'performance-metrics')">
+      Performance Metrics
+    </button>
+  </div>
 
-  <!-- 2) Detections -->
-  {% if uploaded_image_url %}
-  <section class="card">
-    <h2>2. Detection results</h2>
-    <div class="image-row">
-      <div class="image-col">
-        <h3>Original</h3>
-        <img src="{{ uploaded_image_url }}" alt="Uploaded image" />
-      </div>
-      <div class="image-col">
-        <h3>Faster-RCNN</h3>
-        <img src="{{ rcnn_image_url }}" alt="Faster-RCNN detections" />
-      </div>
-      <div class="image-col">
-        <h3>YOLO</h3>
-        <img src="{{ yolo_image_url }}" alt="YOLO detections" />
-      </div>
+  <!-- Tab 1: Live Detection -->
+  <div id="live-detection" class="tab-content active">
+    <div class="card">
+      <h2>Real-Time Object Detection</h2>
+      <form id="live-detection-form" action="{{ url_for('live_detect') }}" method="post" enctype="multipart/form-data" class="upload-section">
+        <div class="form-group">
+          <label for="image">Upload Image</label>
+          <input type="file" id="image" name="image" accept="image/*" {% if not (active_tab == 'live-detection' and uploaded_filename) %}required{% endif %}>
+          {% if active_tab == 'live-detection' and uploaded_filename %}
+          <input type="hidden" name="previous_file" value="{{ uploaded_basename }}">
+          <input type="hidden" name="previous_filename" value="{{ uploaded_filename }}">
+          <p class="hint" style="color: #4ade80; margin-top: 4px;">✓ Current file: {{ uploaded_filename }}</p>
+          {% else %}
+          <p class="hint">Supported formats: JPG, JPEG, PNG</p>
+          {% endif %}
+        </div>
+        
+        <div class="form-group">
+          <label for="model">Select Detection Model</label>
+          <select id="model" name="model" required>
+            <option value="faster_rcnn" {% if selected_model == 'faster_rcnn' %}selected{% endif %}>Faster R-CNN</option>
+            <option value="yolov8n" {% if selected_model == 'yolov8n' %}selected{% endif %}>YOLOv8 Nano</option>
+            <option value="yolov8m" {% if selected_model == 'yolov8m' %}selected{% endif %}>YOLOv8 Medium</option>
+            <option value="yolo11l" {% if selected_model == 'yolo11l' %}selected{% endif %}>YOLO11 Large</option>
+          </select>
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" style="flex: 1;">🚀 Run Detection</button>
+          <button type="button" onclick="clearForm('live-detection-form')" class="btn-clear" style="flex: 0 0 auto;">🗑️ Clear</button>
+        </div>
+      </form>
     </div>
-  </section>
 
-  <!-- 3) Tables -->
-  <section class="card">
-    <h2>3. Detected fruits per model</h2>
-    <div class="table-row">
-      <div class="table-col">
-        <h3>Faster-RCNN</h3>
-        <table>
-          <thead><tr><th>Label</th><th>Confidence</th><th>Box (x1, y1, x2, y2)</th></tr></thead>
-          <tbody>
-            {% for d in rcnn_detections %}
+    {% if live_result %}
+    <div class="card">
+      <h2>Detection Results - {{ live_result.model_name }}</h2>
+      <div class="results-grid">
+        <div class="result-item">
+          <img src="{{ live_result.original_url }}" alt="Original">
+          <div class="result-info">
+            <h4>Original Image</h4>
+          </div>
+        </div>
+        <div class="result-item">
+          <img src="{{ live_result.result_url }}" alt="Detection Result">
+          <div class="result-info">
+            <h4>Detection Output</h4>
+            <div style="display: flex; gap: 15px; margin-top: 10px;">
+              <div class="stat-box" style="flex: 1;">
+                <div class="stat-label">Detections</div>
+                <div class="stat-value">{{ live_result.detections|length }}</div>
+              </div>
+              <div class="stat-box" style="flex: 1;">
+                <div class="stat-label">Avg Confidence</div>
+                <div class="stat-value">{{ '%.1f%%' | format(live_result.avg_confidence * 100) }}</div>
+              </div>
+              <div class="stat-box" style="flex: 1;">
+                <div class="stat-label">Inference Time</div>
+                <div class="stat-value">{{ live_result.inference_time }}ms</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Detected Objects</h3>
+      <table class="detection-table">
+        <thead>
+          <tr>
+            <th>Object</th>
+            <th>Confidence</th>
+            <th>Bounding Box</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for det in live_result.detections %}
+          <tr>
+            <td><strong>{{ det.label|capitalize }}</strong></td>
+            <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
+            <td style="color: #b0b0c0; font-size: 12px;">
+              [{{ '%.0f' | format(det.box[0]) }}, {{ '%.0f' | format(det.box[1]) }}, 
+               {{ '%.0f' | format(det.box[2]) }}, {{ '%.0f' | format(det.box[3]) }}]
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Tab 2: Model Comparison -->
+  <div id="model-comparison" class="tab-content">
+    <div class="card">
+      <h2>Compare All Models Side-by-Side</h2>
+      <form id="comparison-form" action="{{ url_for('compare_models') }}" method="post" enctype="multipart/form-data" class="upload-section">
+        <div class="form-group">
+          <label for="compare-image">Upload Image for Comparison</label>
+          <input type="file" id="compare-image" name="image" accept="image/*" {% if not (active_tab == 'model-comparison' and uploaded_filename) %}required{% endif %}>
+          {% if active_tab == 'model-comparison' and uploaded_filename %}
+          <input type="hidden" name="previous_file" value="{{ uploaded_basename }}">
+          <input type="hidden" name="previous_filename" value="{{ uploaded_filename }}">
+          <p class="hint" style="color: #4ade80; margin-top: 4px;">✓ Current file: {{ uploaded_filename }}</p>
+          <p class="hint">This image will be processed by all 4 models simultaneously</p>
+          {% else %}
+          <p class="hint">This image will be processed by all 4 models simultaneously</p>
+          {% endif %}
+        </div>
+        
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" style="flex: 1;">🔍 Compare All Models</button>
+          <button type="button" onclick="clearForm('comparison-form')" class="btn-clear" style="flex: 0 0 auto;">🗑️ Clear</button>
+        </div>
+      </form>
+    </div>
+
+    {% if comparison_results %}
+    <div class="card">
+      <h2>Comparison Results</h2>
+      
+      <div style="margin-bottom: 30px;">
+        <h3>Original Image</h3>
+        <img src="{{ comparison_results.original_url }}" alt="Original" style="max-width: 400px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+      </div>
+
+      <h3>Model Outputs</h3>
+      <div class="comparison-grid">
+        {% for result in comparison_results.models %}
+        <div class="card" style="margin: 0;">
+          <h3 style="margin-top: 0;">{{ result.model_name }}</h3>
+          <img src="{{ result.result_url }}" alt="{{ result.model_name }}" style="width: 100%; border-radius: 8px;">
+          
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px;">
+            <div class="stat-box">
+              <div class="stat-label">Objects</div>
+              <div class="stat-value" style="font-size: 20px;">{{ result.detection_count }}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Confidence</div>
+              <div class="stat-value" style="font-size: 20px;">{{ '%.1f%%' | format(result.avg_confidence * 100) }}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Time (ms)</div>
+              <div class="stat-value" style="font-size: 20px;">{{ result.inference_time }}</div>
+            </div>
+          </div>
+
+          <details style="margin-top: 15px;">
+            <summary style="cursor: pointer; font-weight: 600; color: #667eea;">View Detections</summary>
+            <table class="detection-table" style="margin-top: 10px; font-size: 13px;">
+              <thead>
+                <tr>
+                  <th>Object</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for det in result.detections %}
+                <tr>
+                  <td>{{ det.label|capitalize }}</td>
+                  <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h3>Comparison Summary</h3>
+        <table class="metrics-table">
+          <thead>
             <tr>
-              <td>{{ d.label }}</td>
-              <td>{{ '%.2f'|format(d.score) }}</td>
-              <td>{{ d.box }}</td>
+              <th>Model</th>
+              <th>Detections</th>
+              <th>Avg Confidence</th>
+              <th>Inference Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for result in comparison_results.models %}
+            <tr>
+              <td><strong>{{ result.model_name }}</strong></td>
+              <td>{{ result.detection_count }}</td>
+              <td>{{ '%.2f%%' | format(result.avg_confidence * 100) }}</td>
+              <td>{{ result.inference_time }}ms</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
-        <p class="metric">Avg confidence: {{ '%.3f'|format(rcnn_stats.avg_confidence) }}</p>
-      </div>
-
-      <div class="table-col">
-        <h3>YOLO</h3>
-        <table>
-          <thead><tr><th>Label</th><th>Confidence</th><th>Box (x1, y1, x2, y2)</th></tr></thead>
-          <tbody>
-            {% for d in yolo_detections %}
-            <tr>
-              <td>{{ d.label }}</td>
-              <td>{{ '%.2f'|format(d.score) }}</td>
-              <td>{{ d.box }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <p class="metric">Avg confidence: {{ '%.3f'|format(yolo_stats.avg_confidence) }}</p>
       </div>
     </div>
-  </section>
-  {% endif %}
+    {% endif %}
+  </div>
 
-  <!-- 4) Per-image chart (bars only) -->
-  {% if uploaded_image_url %}
-  <section class="card">
-    <h2>4. Visualizing what each model “sees”</h2>
-    <div class="toggle-row">
-      <span class="badge">This image</span>
-      <label style="display:inline-flex;gap:6px;align-items:center">
-        <input type="checkbox" id="togglePct"> Show as %
-      </label>
-      <label style="display:inline-flex;gap:6px;align-items:center">
-        <input type="checkbox" id="toggleZero"> Hide zero-only classes
-      </label>
-      <label style="display:inline-flex;gap:6px;align-items:center">
-        Sort:
-        <select id="sortBy">
-          <option value="total" selected>Total desc</option>
-          <option value="fr">Faster-RCNN desc</option>
-          <option value="yolo">YOLO desc</option>
-          <option value="az">A → Z</option>
-        </select>
-      </label>
-    </div>
-    <div id="countChart" class="chart"></div>
-    <div id="zeroNote" class="row-note hint"></div>
-  </section>
-  {% endif %}
+  <!-- Tab 3: Performance Metrics -->
+  <div id="performance-metrics" class="tab-content">
+    <div class="card">
+      <h2>Model Performance Metrics</h2>
+      <p style="color: #e0e0e0; margin-bottom: 20px;">
+        Comprehensive evaluation metrics for all detection models on the fruit dataset.
+      </p>
 
-  <!-- 5) Overall comparison -->
-  <section class="card">
-    <h2>5. Faster-RCNN vs YOLO (overall comparison)</h2>
-    <div class="charts-grid">
-      <div>
-        <div class="badge" style="margin-bottom:6px">Dataset-level</div>
-        <div id="mapChart" class="chart"></div>
-      </div>
-      <div>
-        <div class="badge" style="margin-bottom:6px">Confidence vs Latency</div>
-        <div id="confLatencyChart" class="chart"></div>
-      </div>
-    </div>
-    <div style="margin-top:16px">
-      <div class="badge" style="margin-bottom:6px">Trade-off</div>
-      <div id="tradeoffChart" class="chart"></div>
-    </div>
-
-    <!-- NEW: Model metrics table (right under 5) -->
-    {% set fr_map50  = comparison_metrics['map_50']['Faster-RCNN'] %}
-    {% set fr_map959 = comparison_metrics['map_50_95']['Faster-RCNN'] %}
-    {% set fr_ms     = comparison_metrics['inference_ms']['Faster-RCNN'] %}
-    {% set fr_params = comparison_metrics['params_m']['Faster-RCNN'] %}
-    {% set fr_fps    = (1000.0 / fr_ms) if fr_ms else 0 %}
-    {% set fr_eff_ms = (fr_map959 / fr_ms) if fr_ms else 0 %}
-    {% set fr_eff_pm = (fr_map959 / fr_params) if fr_params else 0 %}
-
-    {% set yo_map50  = comparison_metrics['map_50']['YOLO'] %}
-    {% set yo_map959 = comparison_metrics['map_50_95']['YOLO'] %}
-    {% set yo_ms     = comparison_metrics['inference_ms']['YOLO'] %}
-    {% set yo_params = comparison_metrics['params_m']['YOLO'] %}
-    {% set yo_fps    = (1000.0 / yo_ms) if yo_ms else 0 %}
-    {% set yo_eff_ms = (yo_map959 / yo_ms) if yo_ms else 0 %}
-    {% set yo_eff_pm = (yo_map959 / yo_params) if yo_params else 0 %}
-
-    <div class="metrics-wrap">
-      <div class="metrics-caption">Model metrics summary</div>
       <table class="metrics-table">
         <thead>
           <tr>
             <th>Model</th>
             <th>mAP@0.5</th>
             <th>mAP@0.5:0.95</th>
-            <th>Inference (ms)</th>
-            <th>FPS</th>
-            <th>mAP@0.5:0.95 per ms</th>
-            <th>mAP@0.5:0.95 per M params</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>Params (M)</th>
+            <th>Avg Inference (ms)</th>
           </tr>
         </thead>
         <tbody>
+          {% for model_key, metrics in performance_metrics.items() %}
           <tr>
-            <td class="model">Faster-RCNN</td>
-            <td>{{ '%.3f'|format(fr_map50) }}</td>
-            <td>{{ '%.3f'|format(fr_map959) }}</td>
-            <td>{{ fr_ms }}</td>
-            <td>{{ '%.1f'|format(fr_fps) }}</td>
-            <td>{{ '%.4f'|format(fr_eff_ms) }}</td>
-            <td>{{ '%.4f'|format(fr_eff_pm) }}</td>
+            <td><strong>{{ metrics.name }}</strong></td>
+            <td class="{% if metrics.map_50 == performance_metrics.values()|map(attribute='map_50')|max %}best-metric{% endif %}">
+              {{ '%.3f' | format(metrics.map_50) }}
+              {% if metrics.map_50 == performance_metrics.values()|map(attribute='map_50')|max %}
+              <span class="metric-badge badge-success">Best</span>
+              {% endif %}
+            </td>
+            <td class="{% if metrics.map_50_95 == performance_metrics.values()|map(attribute='map_50_95')|max %}best-metric{% endif %}">
+              {{ '%.3f' | format(metrics.map_50_95) }}
+              {% if metrics.map_50_95 == performance_metrics.values()|map(attribute='map_50_95')|max %}
+              <span class="metric-badge badge-success">Best</span>
+              {% endif %}
+            </td>
+            <td class="{% if metrics.precision == performance_metrics.values()|map(attribute='precision')|max %}best-metric{% endif %}">
+              {{ '%.3f' | format(metrics.precision) }}
+              {% if metrics.precision == performance_metrics.values()|map(attribute='precision')|max %}
+              <span class="metric-badge badge-success">Best</span>
+              {% endif %}
+            </td>
+            <td class="{% if metrics.recall == performance_metrics.values()|map(attribute='recall')|max %}best-metric{% endif %}">
+              {{ '%.3f' | format(metrics.recall) }}
+              {% if metrics.recall == performance_metrics.values()|map(attribute='recall')|max %}
+              <span class="metric-badge badge-success">Best</span>
+              {% endif %}
+            </td>
+            <td>{{ '%.1f' | format(metrics.params) }}</td>
+            <td class="{% if metrics.inference_time == performance_metrics.values()|map(attribute='inference_time')|min %}best-metric{% endif %}">
+              {{ metrics.inference_time }}
+              {% if metrics.inference_time == performance_metrics.values()|map(attribute='inference_time')|min %}
+              <span class="metric-badge badge-success">Fastest</span>
+              {% endif %}
+            </td>
           </tr>
-          <tr>
-            <td class="model">YOLO</td>
-            <td>{{ '%.3f'|format(yo_map50) }}</td>
-            <td>{{ '%.3f'|format(yo_map959) }}</td>
-            <td>{{ yo_ms }}</td>
-            <td>{{ '%.1f'|format(yo_fps) }}</td>
-            <td>{{ '%.4f'|format(yo_eff_ms) }}</td>
-            <td>{{ '%.4f'|format(yo_eff_pm) }}</td>
-          </tr>
+          {% endfor %}
         </tbody>
       </table>
+
+      <div style="margin-top: 30px; padding: 20px; background: #252540; border-radius: 8px; border-left: 4px solid #667eea;">
+        <h3 style="margin-top: 0;">Key Insights</h3>
+        <ul style="margin: 10px 0; padding-left: 20px; color: #e0e0e0;">
+          <li><strong>Faster R-CNN</strong> provides highest accuracy (mAP) with precise bounding boxes</li>
+          <li><strong>YOLO11 Large</strong> offers state-of-the-art performance with good speed-accuracy tradeoff</li>
+          <li><strong>YOLOv8 Nano</strong> is the fastest model, ideal for real-time applications</li>
+          <li><strong>YOLOv8 Medium</strong> balances speed and accuracy for most use cases</li>
+        </ul>
+      </div>
     </div>
+  </div>
 
-    <div style="margin-top:16px">
-      <h3>Conceptual differences</h3>
-      <ul>
-        <li><strong>Faster-RCNN</strong> is a two-stage detector: proposes regions, then classifies them. Higher accuracy, slower.</li>
-        <li><strong>YOLO</strong> is a single-stage detector: predicts boxes + classes in one pass—great for real-time.</li>
-        <li>On your fruit dataset, Faster-RCNN may give tighter boxes; YOLO is better for live demos/low latency.</li>
-      </ul>
-
-      <h3>Model behaviour on fruits</h3>
-      <ul>
-        <li>Faster-RCNN handles <strong>cluttered baskets</strong> and overlapping fruits better.</li>
-        <li>YOLO may <strong>miss very small fruits</strong> but quickly detects larger, central fruits.</li>
-        <li>Higher thresholds clean YOLO’s detections quickly; Faster-RCNN may retain more true positives.</li>
-      </ul>
-    </div>
-  </section>
-
-  <footer class="footer">
-    <p>Fruit Detection Project · Local Demo</p>
+  <footer>
+    <p>Fruit Detection System · Advanced Computer Vision Project · 2025</p>
   </footer>
 </div>
 
 <!-- ================== Charts (Plotly) ================== -->
 <script>
-  // Colors
-  const C = {
-    fr:      'rgba(59,130,246,0.85)',  // Faster-RCNN
-    yolo:    'rgba(236,72,153,0.85)',  // YOLO
-    green:   'rgba(34,197,94,0.85)',
-    amber:   'rgba(245,158,11,0.9)',
-    grid:    'rgba(148,163,184,0.15)'
-  };
-
-  // ========== 4) Per-image counts (bars only) ==========
-  {% if uploaded_image_url %}
-  const rawFr = {{ rcnn_stats.per_class_counts | tojson | safe }};
-  const rawYo = {{ yolo_stats.per_class_counts | tojson | safe }};
-
-  const unionLabels = () => Array.from(new Set([...Object.keys(rawFr||{}), ...Object.keys(rawYo||{})]));
-  const totalsFor = (labs, fr, yo) => labs.map((_,i)=> (fr[i]||0)+(yo[i]||0));
-  const toPct = (vals, totals) => vals.map((v,i)=> totals[i] ? +(v*100/totals[i]).toFixed(1) : 0);
-
-  function getArrays(sortedBy='total', hideZero=false){
-    let labs = unionLabels();
-    if (labs.length === 0) return {labels:[], fr:[], yo:[], totals:[]};
-
-    let fr = labs.map(l=> rawFr[l]||0);
-    let yo = labs.map(l=> rawYo[l]||0);
-    let totals = totalsFor(labs, fr, yo);
-
-    if (hideZero){
-      const keep = labs.map((_,i)=> (fr[i]!==0 || yo[i]!==0));
-      labs   = labs.filter((_,i)=> keep[i]);
-      fr     = fr.filter((_,i)=> keep[i]);
-      yo     = yo.filter((_,i)=> keep[i]);
-      totals = totals.filter((_,i)=> keep[i]);
-    }
-
-    const idx = labs.map((_,i)=> i);
-    idx.sort((a,b)=>{
-      switch(sortedBy){
-        case 'fr':   return fr[b]-fr[a] || labs[a].localeCompare(labs[b]);
-        case 'yolo': return yo[b]-yo[a] || labs[a].localeCompare(labs[b]);
-        case 'az':   return labs[a].localeCompare(labs[b]);
-        case 'total':
-        default:     return totals[b]-totals[a] || labs[a].localeCompare(labs[b]);
+  // Activate the correct tab on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const activeTab = '{{ active_tab }}';
+    if (activeTab && activeTab !== 'live-detection') {
+      // Hide all tabs
+      const tabContents = document.getElementsByClassName('tab-content');
+      for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].classList.remove('active');
       }
-    });
-    labs   = idx.map(i=> labs[i]);
-    fr     = idx.map(i=> fr[i]);
-    yo     = idx.map(i=> yo[i]);
-    totals = idx.map(i=> totals[i]);
-    return {labels: labs, fr, yo, totals};
-  }
-
-  const countDiv = document.getElementById('countChart');
-  const zeroNote = document.getElementById('zeroNote');
-  const elPct    = document.getElementById('togglePct');
-  const elZero   = document.getElementById('toggleZero');
-  const elSort   = document.getElementById('sortBy');
-
-  function renderCount(){
-    const asPct  = elPct?.checked ?? false;
-    const hideZ  = elZero?.checked ?? false;
-    const sortBy = elSort?.value   ?? 'total';
-
-    const {labels, fr, yo, totals} = getArrays(sortBy, hideZ);
-
-    if (labels.length){
-      const missedFr = labels.filter((l,i)=> fr[i]===0 && yo[i]>0);
-      const missedYo = labels.filter((l,i)=> yo[i]===0 && fr[i]>0);
-      let html = '';
-      if (missedFr.length) html += `<div><strong>Faster-RCNN missed:</strong> ${missedFr.map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
-      if (missedYo.length) html += `<div><strong>YOLO missed:</strong> ${missedYo.map(c=>`<span class="chip">${c}</span>`).join('')}</div>`;
-      zeroNote.innerHTML = html || '';
-    } else {
-      zeroNote.innerHTML = '';
+      
+      // Remove active from all buttons
+      const tabButtons = document.getElementsByClassName('tab-button');
+      for (let i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].classList.remove('active');
+      }
+      
+      // Activate the correct tab
+      document.getElementById(activeTab).classList.add('active');
+      
+      // Activate the correct button
+      const buttons = document.querySelectorAll('.tab-button');
+      buttons.forEach(btn => {
+        if (btn.onclick && btn.onclick.toString().includes(activeTab)) {
+          btn.classList.add('active');
+        }
+      });
     }
-
-    if (!labels.length){
-      countDiv.innerHTML = '<div style="opacity:.7;padding:12px;">No detections to visualize.</div>';
-      return;
+  });
+  
+  function switchTab(evt, tabName) {
+    // Hide all tab contents
+    const tabContents = document.getElementsByClassName('tab-content');
+    for (let i = 0; i < tabContents.length; i++) {
+      tabContents[i].classList.remove('active');
     }
-
-    const yFr = asPct ? toPct(fr, totals) : fr;
-    const yYo = asPct ? toPct(yo, totals) : yo;
-    const yTitle = asPct ? 'Percentage (%)' : 'Count';
-
-    const data = [
-      {type:'bar', name:'Faster-RCNN', x:labels, y:yFr, marker:{color:C.fr}},
-      {type:'bar', name:'YOLO',        x:labels, y:yYo, marker:{color:C.yolo}}
-    ];
-
-    Plotly.newPlot(countDiv, data, {
-      template:'plotly_white',
-      paper_bgcolor:'white',
-      plot_bgcolor:'white',
-      barmode:'group',
-      hovermode:'x unified',
-      margin:{l:60,r:20,t:10,b:50},
-      yaxis:{ title:yTitle, gridcolor:C.grid, range: asPct?[0,100]:undefined },
-      xaxis:{ tickangle:-15, gridcolor:C.grid },
-      legend:{orientation:'h', y:-0.2}
-    },{displayModeBar:true, responsive:true});
+    
+    // Remove active class from all buttons
+    const tabButtons = document.getElementsByClassName('tab-button');
+    for (let i = 0; i < tabButtons.length; i++) {
+      tabButtons[i].classList.remove('active');
+    }
+    
+    // Show current tab and mark button as active
+    document.getElementById(tabName).classList.add('active');
+    evt.currentTarget.classList.add('active');
   }
-
-  renderCount();
-  elPct?.addEventListener('change', renderCount);
-  elZero?.addEventListener('change', renderCount);
-  elSort?.addEventListener('change', renderCount);
-  {% endif %}
-
-  // ========== 5a) Accuracy bars (dataset-level) ==========
-  const metrics = {{ comparison_metrics | tojson | safe }};
-  const mapDiv  = document.getElementById('mapChart');
-
-  Plotly.newPlot(mapDiv, [
-    { type:'bar', orientation:'h', name:'Faster-RCNN',
-      x:[metrics.map_50['Faster-RCNN'], metrics.map_50_95['Faster-RCNN']],
-      y:['mAP@0.5','mAP@0.5:0.95'],
-      marker:{color:C.fr} },
-    { type:'bar', orientation:'h', name:'YOLO',
-      x:[metrics.map_50['YOLO'], metrics.map_50_95['YOLO']],
-      y:['mAP@0.5','mAP@0.5:0.95'],
-      marker:{color:C.yolo} }
-  ],{
-    template:'plotly_white',
-    paper_bgcolor:'white',
-    plot_bgcolor:'white',
-    barmode:'group',
-    hovermode:'y unified',
-    margin:{l:90,r:20,t:10,b:40},
-    xaxis:{ title:'mAP', range:[0,1], gridcolor:C.grid },
-    legend:{orientation:'h', y:-0.2}
-  },{displayModeBar:true, responsive:true});
-
-  // ========== 5b) Confidence vs Latency (dual-axis) ==========
-  const confLatencyDiv = document.getElementById('confLatencyChart');
-  const avgConfF = {{ rcnn_stats.avg_confidence | default(0) | float }};
-  const avgConfY = {{ yolo_stats.avg_confidence | default(0) | float }};
-  const infF     = metrics.inference_ms['Faster-RCNN'] ?? 0;
-  const infY     = metrics.inference_ms['YOLO'] ?? 0;
-
-  Plotly.newPlot(confLatencyDiv, [
-    { type:'bar', name:'Avg confidence', x:['Faster-RCNN','YOLO'], y:[avgConfF, avgConfY], marker:{color:C.green}, yaxis:'y' },
-    { type:'scatter', mode:'lines+markers', name:'Inference time (ms)', x:['Faster-RCNN','YOLO'], y:[infF, infY],
-      line:{color:C.amber, width:3}, marker:{size:8}, yaxis:'y2' }
-  ],{
-    template:'plotly_white',
-    paper_bgcolor:'white',
-    plot_bgcolor:'white',
-    hovermode:'x unified',
-    margin:{l:60,r:60,t:10,b:50},
-    yaxis: { title:'Avg confidence', range:[0,1], gridcolor:C.grid },
-    yaxis2:{ title:'ms', overlaying:'y', side:'right', rangemode:'tozero', gridcolor:C.grid },
-    legend:{orientation:'h', y:-0.2}
-  },{displayModeBar:true, responsive:true});
-
-  // ========== 5c) Trade-off bubble ==========
-  const tradeDiv = document.getElementById('tradeoffChart');
-  const paramFR  = metrics.params_m['Faster-RCNN'];
-  const paramYO  = metrics.params_m['YOLO'];
-  const mapFR95  = metrics.map_50_95['Faster-RCNN'];
-  const mapYO95  = metrics.map_50_95['YOLO'];
-
-  const speedFR  = infF  > 0 ? 1/infF : 0;
-  const speedYO  = infY  > 0 ? 1/infY : 0;
-  const maxSpeed = Math.max(speedFR, speedYO, 1e-6);
-  const sizeFR   = 40 * (speedFR / maxSpeed) + 10;
-  const sizeYO   = 40 * (speedYO / maxSpeed) + 10;
-
-  Plotly.newPlot(tradeDiv, [
-    { type:'scatter', mode:'markers+text', name:'Faster-RCNN',
-      x:[paramFR], y:[mapFR95], text:['Faster-RCNN'], textposition:'top center',
-      marker:{ size:[sizeFR], sizemode:'diameter', color:C.fr } },
-    { type:'scatter', mode:'markers+text', name:'YOLO',
-      x:[paramYO], y:[mapYO95], text:['YOLO'], textposition:'top center',
-      marker:{ size:[sizeYO], sizemode:'diameter', color:C.yolo } }
-  ],{
-    template:'plotly_white',
-    paper_bgcolor:'white',
-    plot_bgcolor:'white',
-    hovermode:'closest',
-    margin:{l:60,r:20,t:10,b:60},
-    xaxis:{ title:'Parameters (M)', gridcolor:C.grid },
-    yaxis:{ title:'mAP@0.5:0.95', range:[0,1], gridcolor:C.grid },
-    legend:{orientation:'h', y:-0.2}
-  },{displayModeBar:true, responsive:true});
+  
+  function clearForm(formId) {
+    const form = document.getElementById(formId);
+    if (form) {
+      // Only reset the select dropdown to first option
+      const selectInput = form.querySelector('select');
+      if (selectInput) {
+        selectInput.selectedIndex = 0;
+      }
+    }
+  }
 </script>
 </body>
 </html>
