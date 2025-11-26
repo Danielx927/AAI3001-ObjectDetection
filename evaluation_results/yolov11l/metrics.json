@@ -1,0 +1,15 @@
+{
+  "map_50": 0.7119169946329641,
+  "map_75": 0.692969948937332,
+  "map_50_95": 0.5984205721648149,
+  "mean_iou": 0.8918890066877443,
+  "recall_50": 0.7802197802197802,
+  "precision_50": 0.8987341772151899,
+  "false_positives": 32,
+  "false_negatives": 80,
+  "total_predictions": 316,
+  "total_ground_truths": 364,
+  "inference_time_ms": 0.0,
+  "model_name": "YOLO (best)",
+  "confidence_threshold": 0.5
+}

@@ -1,5 +1,5 @@
 ============================================================
-BOUNDING BOX EVALUATION REPORT: Faster R-CNN
+BOUNDING BOX EVALUATION REPORT: YOLO (best)
 ============================================================
 
 Confidence Threshold: 0.5
@@ -7,24 +7,24 @@ Confidence Threshold: 0.5
 ------------------------------------------------------------
 PRIMARY METRICS
 ------------------------------------------------------------
-mAP@0.5:          0.8032
-mAP@0.75:         0.7086
-mAP@[0.5:0.95]:   0.6415
-Mean IoU:         0.8877
+mAP@0.5:          0.7970
+mAP@0.75:         0.7002
+mAP@[0.5:0.95]:   0.6372
+Mean IoU:         0.8908
 
 ------------------------------------------------------------
 DETECTION METRICS (IoU@0.5)
 ------------------------------------------------------------
-Recall:           0.8709
-Precision:        0.6921
-F1-Score:         0.7713
+Recall:           0.8297
+Precision:        0.8629
+F1-Score:         0.8459
 
 ------------------------------------------------------------
 ERROR ANALYSIS
 ------------------------------------------------------------
-False Positives:  141
-False Negatives:  47
-Total Predictions: 458
+False Positives:  48
+False Negatives:  62
+Total Predictions: 350
 Total Ground Truths: 364
 
 ============================================================

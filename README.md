@@ -1,17 +1,17 @@
 ## Data Collection & Annotation
 
-The dataset consists of **1,295 fruit images** across **10 fruit classes**. Data was collected through a combination of self-annotation and external sources to ensure class balance and diversity.
+The dataset consists of **1,504 fruit images** across **10 fruit classes**. Data was collected through a combination of self-annotation and external sources to ensure class balance and diversity.
 
 ---
 
-### 1. Self-Annotated Images (995 images)
+### 1. Self-Annotated Images (1054 images)
 
-A total of **995 images** were annotated manually using **LabelImg**, of which contains
+A total of **1504 images** were annotated manually using **LabelImg**, of which contains
 **around 100 images per class** that were filtered from our previously collected dataset used in the first half of the project on fruit classification. 
 
 ---
 
-### 2. External Kaggle Sources (300 images)
+### 2. External Kaggle Sources (450 images)
 
 To increase variability and representation, **300 additional images** were sourced from **multiple Kaggle datasets**.  
 Only images that matched the 10 fruit classes were included.
@@ -29,6 +29,10 @@ Below are the Kaggle datasets referenced (insert actual links in the placeholder
 1. **Dataset Source 1**  
    *Fruit Images for Object Detection:* <https://www.kaggle.com/datasets/mbkinaci/fruit-images-for-object-detection>  
    *Notes:* 300 images of apple, banana and orange were taken from this dataset
+
+2. **Dataset Source 2**  
+   *Fruit Detection Dataset:* <https://www.kaggle.com/datasets/lakshaytyagi01/fruit-detection>  
+   *Notes:* 150 images of watermelon were taken from this dataset
 
 
 ## Data Splitting & Class Balancing
