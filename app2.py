@@ -188,7 +188,7 @@ AVAILABLE_MODELS = {
 # Freshness classification model (ResNet18)
 # ---------------------------------------------------------
 # TODO: replace this with the actual path to your trained ResNet18 weights
-FRESHNESS_MODEL_PATH = os.path.join(BASE_DIR, "models", "resnet18_finetuned_2.pth")
+FRESHNESS_MODEL_PATH = os.path.join(BASE_DIR, "models", "quality_resnet18.pth")
 
 freshness_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 freshness_model = None
