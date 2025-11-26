@@ -489,9 +489,9 @@ def add_freshness_labels(image_path, detections):
     # Change the mapping if your training labels are reversed.
     for det_idx, cls_idx, conf in zip(indices, preds.cpu().tolist(), confs.cpu().tolist()):
         if cls_idx == 1:
-            freshness_label = "fresh"
-        else:
             freshness_label = "not fresh"
+        else:
+            freshness_label = "fresh"
 
         detections[det_idx]["freshness"] = freshness_label
         detections[det_idx]["freshness_score"] = float(conf)
@@ -714,7 +714,7 @@ def run_yolo(image_path, model_key="yolo11l"):
 @app.route("/", methods=["GET"])
 def index():
     return render_template(
-        "index.html",
+        "index2.html",
         live_result=None,
         comparison_results=None,
         performance_metrics=get_performance_metrics(),
@@ -788,7 +788,7 @@ def live_detect():
     }
 
     return render_template(
-        "index.html",
+        "index2.html",
         live_result=live_result,
         comparison_results=None,
         performance_metrics=get_performance_metrics(),
@@ -865,7 +865,7 @@ def compare_models():
     }
 
     return render_template(
-        "index.html",
+        "index2.html",
         live_result=None,
         comparison_results=comparison_results,
         performance_metrics=get_performance_metrics(),
