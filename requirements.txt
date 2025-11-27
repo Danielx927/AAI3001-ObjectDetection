@@ -2,3 +2,16 @@ iterative-stratification>=0.1.8
 pillow>=9.0.0
 numpy>=1.21.0
 ultralytics
+torch
+torchvision
+opencv-python-headless
+pyyaml
+gradio
+flask>=3.0.0
+gradio>=4.0.0
+matplotlib
+pandas
+scikit-learn
+tqdm
+jupyter
+ipykernel

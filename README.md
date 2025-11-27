@@ -1,3 +1,103 @@
+## Running the Application (app.py)
+
+Follow these steps to run the application successfully. The app will NOT run if any step is skipped or done out of order.
+
+### 1. Create a New Python Virtual Environment (REQUIRED)
+
+It is highly recommended to isolate dependencies.
+
+**Mac / Linux**
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**Windows**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+You must see the `(venv)` prefix in your terminal before continuing.
+
+### 2. Install All Required Dependencies
+
+You MUST install using the provided `requirements.txt`:
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+This installs:
+- PyTorch + Torchvision  
+- Ultralytics YOLO  
+- Flask  
+- OpenCV  
+- Pillow  
+- Gradio (if used for deployment)  
+- All helper libraries used by `app.py` and `app2.py`
+
+If installation fails, ensure you have Python **3.9–3.11**.
+
+### 3. Run the Application
+
+Start the Flask app using:
+
+```bash
+python app.py
+```
+
+You should see output similar to:
+
+```
+* Running on http://127.0.0.1:5000 (Press CTRL+C to quit)
+```
+
+### 5. Open the Web Interface
+
+Once the server is running:
+
+1. Open your browser
+2. Go to:
+
+```
+http://127.0.0.1:5000
+```
+
+You should now see the full Fruit Detection interface, including:
+- Upload button
+- Model selection
+- Object detection results
+- Bounding box highlighting
+- Live Video Object Detection
+- Performance Metrics
+
+### 6. Optional: Running the Gradio Deployment (`app.py` for Hugging Face)
+
+If you are running the Gradio version instead of Flask, use:
+
+```bash
+python app.py
+```
+
+You will see a Gradio URL such as:
+
+```
+Running on http://127.0.0.1:7860
+```
+
+Open that link to use the hosted interface.
+
+### 7. Stopping the App
+
+To safely stop the server:
+
+- Press **CTRL + C** in the terminal.
+
+
+
+
 ## Data Collection & Annotation
 
 The dataset consists of **1,504 fruit images** across **10 fruit classes**. Data was collected through a combination of self-annotation and external sources to ensure class balance and diversity.

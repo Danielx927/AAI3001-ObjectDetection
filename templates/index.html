@@ -494,6 +494,7 @@
           <tr>
             <th>Object</th>
             <th>Confidence</th>
+            <th>Freshness</th>
             <th>Bounding Box</th>
           </tr>
         </thead>
@@ -506,7 +507,13 @@
           >
             <td><strong>{{ det.label|capitalize }}</strong></td>
             <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
-            <td style="color: #b0b0c0; font-size: 12px;">
+            <td>
+              {{ det.freshness|default('Unknown')|capitalize }}
+              {% if det.freshness_score is defined %}
+                ({{ '%.1f%%' | format(det.freshness_score * 100) }})
+              {% endif %}
+            </td>
+            <td style="color: #b0b0c0; font-size: 16px;">
               [{{ '%.0f' | format(det.box[0]) }}, {{ '%.0f' | format(det.box[1]) }}, 
               {{ '%.0f' | format(det.box[2]) }}, {{ '%.0f' | format(det.box[3]) }}]
             </td>
@@ -653,6 +660,7 @@
                   <tr>
                     <th>Object</th>
                     <th>Confidence</th>
+                    <th>Freshness</th>  {# NEW COLUMN #}
                   </tr>
                 </thead>
                 <tbody>
@@ -665,6 +673,12 @@
                   >
                     <td>{{ det.label|capitalize }}</td>
                     <td>{{ '%.2f%%' | format(det.score * 100) }}</td>
+                    <td>
+                      {{ det.freshness|default('Unknown')|capitalize }}
+                      {% if det.freshness_score is defined %}
+                        ({{ '%.1f%%' | format(det.freshness_score * 100) }})
+                      {% endif %}
+                    </td>
                   </tr>
                   {% endfor %}
                 </tbody>

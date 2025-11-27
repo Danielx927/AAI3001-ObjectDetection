@@ -5,8 +5,11 @@ import uuid
 from collections import Counter
 
 import torch
+import torch.nn as nn
 from torchvision import transforms as T
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
+from torchvision.models import resnet18
+
 
 try:
     import yaml
@@ -181,6 +184,44 @@ AVAILABLE_MODELS = {
     },
 }
 
+# ---------------------------------------------------------
+# Fruit type classification model (ResNet18)
+# ---------------------------------------------------------
+FRUIT_TYPE_MODEL_PATH = os.path.join(BASE_DIR, "models", "fruit_type_resnet18.pth")
+
+fruit_type_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+fruit_type_model = None
+
+# Standard ImageNet-like preprocessing for ResNet
+fruit_type_transform = T.Compose([
+    T.Resize((224, 224)),
+    T.ToTensor(),
+    T.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+    ),
+])
+
+# ---------------------------------------------------------
+# Freshness classification model (ResNet18)
+# ---------------------------------------------------------
+# TODO: replace this with the actual path to your trained ResNet18 weights
+FRESHNESS_MODEL_PATH = os.path.join(BASE_DIR, "models", "quality_resnet18.pth")
+
+freshness_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+freshness_model = None
+
+# Standard ImageNet-like preprocessing for ResNet
+freshness_transform = T.Compose([
+    T.Resize((224, 224)),
+    T.ToTensor(),
+    T.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+    ),
+])
+
+
 # Device for models
 faster_rcnn_device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 loaded_models = {}  # Cache for loaded models
@@ -339,6 +380,277 @@ def summarize_detections(detections):
         avg_conf = 0.0
     return per_class_counts, avg_conf
 
+def load_fruit_type_model():
+    """
+    Load the ResNet18 fruit type classifier.
+
+    Tries to handle both:
+      - state_dict checkpoints
+      - full saved model (torch.save(model, ...))
+    """
+    global fruit_type_model
+
+    if fruit_type_model is not None:
+        return fruit_type_model
+
+    if not os.path.exists(FRUIT_TYPE_MODEL_PATH):
+        print(f"[FruitType] Weights file not found at: {FRUIT_TYPE_MODEL_PATH}")
+        print("[FruitType] Fruit type classification will be skipped.")
+        return None
+
+    try:
+        print(f"[FruitType] Loading fruit type model from: {FRUIT_TYPE_MODEL_PATH}")
+        ckpt = torch.load(FRUIT_TYPE_MODEL_PATH, map_location=fruit_type_device)
+
+        # Case 1: you saved the whole model with torch.save(model, ...)
+        if isinstance(ckpt, torch.nn.Module):
+            model = ckpt
+            print("[FruitType] Loaded full model object from checkpoint.")
+        else:
+            # Case 2: you saved a state_dict
+            if isinstance(ckpt, dict):
+                state_dict = (
+                    ckpt.get("model_state_dict")
+                    or ckpt.get("state_dict")
+                    or ckpt.get("model")
+                    or ckpt
+                )
+            else:
+                state_dict = ckpt
+
+            # Build a fresh ResNet18 backbone
+            model = resnet18(weights=None)
+            num_ftrs = model.fc.in_features
+
+            # Try to infer num_classes from fc.weight if present
+            if isinstance(state_dict, dict) and "fc.weight" in state_dict:
+                num_classes = state_dict["fc.weight"].shape[0]
+            else:
+                num_classes = len(CLASS_NAMES)  # default to number of fruit classes
+
+            model.fc = nn.Linear(num_ftrs, num_classes)
+
+            # Load weights (non-strict in case of minor key mismatches)
+            if isinstance(state_dict, dict):
+                missing, unexpected = model.load_state_dict(state_dict, strict=False)
+                print(f"[FruitType] Loaded state_dict. Missing keys: {missing}, Unexpected keys: {unexpected}")
+            else:
+                model.load_state_dict(state_dict)
+
+        model.to(fruit_type_device)
+        model.eval()
+
+        fruit_type_model = model
+        print("[FruitType] ResNet18 fruit type model loaded successfully.")
+        return fruit_type_model
+
+    except Exception as e:
+        print("[FruitType] Failed to load fruit type model:", e)
+        return None
+
+
+def load_freshness_model():
+    """
+    Load the ResNet18 freshness classifier.
+
+    Tries to handle both:
+      - state_dict checkpoints
+      - full saved model (torch.save(model, ...))
+    """
+    global freshness_model
+
+    if freshness_model is not None:
+        return freshness_model
+
+    if not os.path.exists(FRESHNESS_MODEL_PATH):
+        print(f"[Freshness] Weights file not found at: {FRESHNESS_MODEL_PATH}")
+        print("[Freshness] Fresh/not fresh classification will be skipped.")
+        return None
+
+    try:
+        print(f"[Freshness] Loading freshness model from: {FRESHNESS_MODEL_PATH}")
+        ckpt = torch.load(FRESHNESS_MODEL_PATH, map_location=freshness_device)
+
+        # Case 1: you saved the whole model with torch.save(model, ...)
+        if isinstance(ckpt, torch.nn.Module):
+            model = ckpt
+            print("[Freshness] Loaded full model object from checkpoint.")
+        else:
+            # Case 2: you saved a state_dict
+            # ckpt might be:
+            #   - pure state_dict
+            #   - {"state_dict": ..., ...}
+            #   - {"model_state_dict": ..., ...}
+            if isinstance(ckpt, dict):
+                state_dict = (
+                    ckpt.get("model_state_dict")
+                    or ckpt.get("state_dict")
+                    or ckpt.get("model")
+                    or ckpt
+                )
+            else:
+                state_dict = ckpt
+
+            # Build a fresh ResNet18 backbone
+            model = resnet18(weights=None)
+            num_ftrs = model.fc.in_features
+
+            # Try to infer num_classes from fc.weight if present
+            if isinstance(state_dict, dict) and "fc.weight" in state_dict:
+                num_classes = state_dict["fc.weight"].shape[0]
+            else:
+                num_classes = 2  # default to binary fresh/not fresh
+
+            model.fc = nn.Linear(num_ftrs, num_classes)
+
+            # Load weights (non-strict in case of minor key mismatches)
+            if isinstance(state_dict, dict):
+                missing, unexpected = model.load_state_dict(state_dict, strict=False)
+                print(f"[Freshness] Loaded state_dict. Missing keys: {missing}, Unexpected keys: {unexpected}")
+            else:
+                model.load_state_dict(state_dict)
+
+        model.to(freshness_device)
+        model.eval()
+
+        freshness_model = model
+        print("[Freshness] ResNet18 freshness model loaded successfully.")
+        return freshness_model
+
+    except Exception as e:
+        print("[Freshness] Failed to load freshness model:", e)
+        return None
+
+
+def add_fruit_type_labels(image_path, detections):
+    """
+    Given the image path and list of detections (with bounding boxes only),
+    run the fruit type classifier on each box and add:
+        det["label"]       -> fruit type (apple, banana, orange, etc.)
+        det["score"]       -> classification confidence (0-1)
+    If the model or weights are missing, detections are returned with generic labels.
+    """
+    if not detections:
+        return detections
+
+    model = load_fruit_type_model()
+    if model is None:
+        # No model -> assign generic labels
+        for i, det in enumerate(detections):
+            det["label"] = "fruit"
+            det["score"] = det.get("score", 1.0)  # Keep detection score
+        return detections
+
+    # Open original image
+    image = Image.open(image_path).convert("RGB")
+    W, H = image.size
+
+    crops = []
+    indices = []
+
+    # Prepare crops for all detections
+    for i, det in enumerate(detections):
+        x1, y1, x2, y2 = det["box"]
+
+        # Clamp and cast to int
+        x1 = max(0, min(W - 1, int(x1)))
+        y1 = max(0, min(H - 1, int(y1)))
+        x2 = max(0, min(W,     int(x2)))
+        y2 = max(0, min(H,     int(y2)))
+
+        if x2 <= x1 or y2 <= y1:
+            continue  # skip degenerate boxes
+
+        crop = image.crop((x1, y1, x2, y2))
+        crops.append(fruit_type_transform(crop))
+        indices.append(i)
+
+    if not crops:
+        return detections
+
+    batch = torch.stack(crops).to(fruit_type_device)
+
+    with torch.no_grad():
+        logits = model(batch)
+        probs = torch.softmax(logits, dim=1)
+        confs, preds = torch.max(probs, dim=1)
+
+    # Map predictions to class names
+    for det_idx, cls_idx, conf in zip(indices, preds.cpu().tolist(), confs.cpu().tolist()):
+        if 0 <= cls_idx < len(CLASS_NAMES):
+            fruit_label = CLASS_NAMES[cls_idx]
+        else:
+            fruit_label = "fruit"
+
+        detections[det_idx]["label"] = fruit_label
+        detections[det_idx]["score"] = float(conf)
+
+    return detections
+
+
+def add_freshness_labels(image_path, detections):
+    """
+    Given the image path and list of detections, run the freshness classifier on each box
+    and add:
+        det["freshness"]        -> "fresh" or "not fresh"
+        det["freshness_score"]  -> confidence (0-1)
+    If the model or weights are missing, detections are returned unchanged.
+    """
+    if not detections:
+        return detections
+
+    model = load_freshness_model()
+    if model is None:
+        # No model -> skip freshness classification
+        return detections
+
+    # Open original image
+    image = Image.open(image_path).convert("RGB")
+    W, H = image.size
+
+    crops = []
+    indices = []
+
+    # Prepare crops for all detections
+    for i, det in enumerate(detections):
+        x1, y1, x2, y2 = det["box"]
+
+        # Clamp and cast to int
+        x1 = max(0, min(W - 1, int(x1)))
+        y1 = max(0, min(H - 1, int(y1)))
+        x2 = max(0, min(W,     int(x2)))
+        y2 = max(0, min(H,     int(y2)))
+
+        if x2 <= x1 or y2 <= y1:
+            continue  # skip degenerate boxes
+
+        crop = image.crop((x1, y1, x2, y2))
+        crops.append(freshness_transform(crop))
+        indices.append(i)
+
+    if not crops:
+        return detections
+
+    batch = torch.stack(crops).to(freshness_device)
+
+    with torch.no_grad():
+        logits = model(batch)
+        probs = torch.softmax(logits, dim=1)
+        confs, preds = torch.max(probs, dim=1)
+
+    # NOTE: This mapping assumes class 0 = "not fresh", class 1 = "fresh".
+    # Change the mapping if your training labels are reversed.
+    for det_idx, cls_idx, conf in zip(indices, preds.cpu().tolist(), confs.cpu().tolist()):
+        if cls_idx == 1:
+            freshness_label = "not fresh"
+        else:
+            freshness_label = "fresh"
+
+        detections[det_idx]["freshness"] = freshness_label
+        detections[det_idx]["freshness_score"] = float(conf)
+
+    return detections
+
 
 # =========================================================
 # MODEL LOADING HOOKS (integrate your models here)
@@ -445,12 +757,19 @@ def load_model(model_key):
 def run_detection(image_path, model_key):
     """
     Run detection using the selected model.
+    
+    NEW PIPELINE:
+    1. Object detection model predicts bounding boxes only
+    2. Crop each box and classify fruit type using ResNet18
+    3. Classify freshness for each box using ResNet18
 
     Returns a list of dicts:
       {
-        "label": <class name>,
-        "score": <float>,
-        "box": [x_min, y_min, x_max, y_max]
+        "label": <fruit type from ResNet18>,
+        "score": <fruit type confidence>,
+        "box": [x_min, y_min, x_max, y_max],
+        "freshness": <"fresh" or "not fresh">,
+        "freshness_score": <freshness confidence>
       }
     """
     model_info = AVAILABLE_MODELS.get(model_key)
@@ -464,7 +783,7 @@ def run_detection(image_path, model_key):
     model_type = model_info["type"]
     
     if model_type == "rcnn":
-        # Faster-RCNN inference
+        # Faster-RCNN inference - only get bounding boxes
         image = Image.open(image_path).convert("RGB")
         transform = T.ToTensor()
         img_tensor = transform(image).to(faster_rcnn_device)
@@ -474,53 +793,46 @@ def run_detection(image_path, model_key):
 
         detections = []
         boxes = outputs.get("boxes", [])
-        labels = outputs.get("labels", [])
         scores = outputs.get("scores", [])
 
-        for box, label_id, score in zip(boxes, labels, scores):
-            score = float(score)
-            if score < 0.6:
+        for box, det_score in zip(boxes, scores):
+            det_score = float(det_score)
+            if det_score < 0.6:
                 continue
-
-            idx = int(label_id) - 1
-            if 0 <= idx < len(CLASS_NAMES):
-                label = CLASS_NAMES[idx]
-            else:
-                label = f"class_{int(label_id)}"
 
             x1, y1, x2, y2 = box.tolist()
             detections.append({
-                "label": label,
-                "score": score,
                 "box": [x1, y1, x2, y2],
+                "detection_score": det_score,  # Store original detection confidence
             })
-
+        
+        # Classify fruit type using ResNet18
+        detections = add_fruit_type_labels(image_path, detections)
+        # Classify freshness using ResNet18
+        detections = add_freshness_labels(image_path, detections)
         return detections
         
     elif model_type == "yolo":
-        # YOLO inference
+        # YOLO inference - only get bounding boxes
         results = model(image_path)[0]
         detections = []
 
         for box in results.boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
-            score = float(box.conf[0])
-            cls_id = int(box.cls[0])
+            det_score = float(box.conf[0])
 
-            if score < 0.6:
+            if det_score < 0.6:
                 continue
 
-            if 0 <= cls_id < len(CLASS_NAMES):
-                label = CLASS_NAMES[cls_id]
-            else:
-                label = f"class_{cls_id}"
-
             detections.append({
-                "label": label,
-                "score": score,
                 "box": [x1, y1, x2, y2],
+                "detection_score": det_score,  # Store original detection confidence
             })
 
+        # Classify fruit type using ResNet18
+        detections = add_fruit_type_labels(image_path, detections)
+        # Classify freshness using ResNet18
+        detections = add_freshness_labels(image_path, detections)
         return detections
     
     return []
@@ -828,7 +1140,7 @@ def generate_frames():
 
 
 def detect_frame(frame, model_key):
-    """Run detection on a single video frame."""
+    """Run detection on a single video frame using new 3-stage pipeline."""
     model_info = AVAILABLE_MODELS.get(model_key)
     if not model_info:
         return []
@@ -841,11 +1153,12 @@ def detect_frame(frame, model_key):
     detections = []
     
     try:
+        # Convert frame to PIL for classification models
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(rgb_frame)
+        H, W = pil_image.size[1], pil_image.size[0]
+        
         if model_type == "rcnn":
-            # Convert BGR to RGB
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            pil_image = Image.fromarray(rgb_frame)
-            
             transform = T.ToTensor()
             img_tensor = transform(pil_image).to(faster_rcnn_device)
 
@@ -853,49 +1166,54 @@ def detect_frame(frame, model_key):
                 outputs = model([img_tensor])[0]
 
             boxes = outputs.get("boxes", [])
-            labels = outputs.get("labels", [])
             scores = outputs.get("scores", [])
 
-            for box, label_id, score in zip(boxes, labels, scores):
-                score = float(score)
-                if score < 0.5:  # Lower threshold for real-time
+            for box, det_score in zip(boxes, scores):
+                det_score = float(det_score)
+                if det_score < 0.5:  # Lower threshold for real-time
                     continue
-
-                idx = int(label_id) - 1
-                if 0 <= idx < len(CLASS_NAMES):
-                    label = CLASS_NAMES[idx]
-                else:
-                    label = f"class_{int(label_id)}"
 
                 x1, y1, x2, y2 = box.tolist()
                 detections.append({
-                    "label": label,
-                    "score": score,
                     "box": [int(x1), int(y1), int(x2), int(y2)],
+                    "detection_score": det_score,
                 })
                 
         elif model_type == "yolo":
-            # YOLO can work directly with cv2 frames
             results = model(frame, verbose=False)[0]
 
             for box in results.boxes:
                 x1, y1, x2, y2 = box.xyxy[0].tolist()
-                score = float(box.conf[0])
-                cls_id = int(box.cls[0])
+                det_score = float(box.conf[0])
 
-                if score < 0.5:  # Lower threshold for real-time
+                if det_score < 0.5:  # Lower threshold for real-time
                     continue
 
-                if 0 <= cls_id < len(CLASS_NAMES):
-                    label = CLASS_NAMES[cls_id]
-                else:
-                    label = f"class_{cls_id}"
-
                 detections.append({
-                    "label": label,
-                    "score": score,
                     "box": [int(x1), int(y1), int(x2), int(y2)],
+                    "detection_score": det_score,
                 })
+        
+        # For video, we'll add fruit type classification
+        # Note: Freshness classification might be too slow for real-time video
+        # so we only add fruit type labels here
+        if detections:
+            # Save frame temporarily for classification
+            temp_path = os.path.join(UPLOAD_FOLDER, "temp_frame.jpg")
+            pil_image.save(temp_path)
+            
+            # Classify fruit types
+            detections = add_fruit_type_labels(temp_path, detections)
+            
+            # Optionally add freshness (may slow down video)
+            # detections = add_freshness_labels(temp_path, detections)
+            
+            # Clean up temp file
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+                
     except Exception as e:
         print(f"Error during frame detection: {e}")
     
@@ -921,8 +1239,8 @@ def draw_boxes_on_frame(frame, detections):
         
         # Get text size
         font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.6
-        thickness = 2
+        font_scale = 1.2
+        thickness = 3
         (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, thickness)
         
         # Draw background rectangle for text
