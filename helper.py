@@ -245,6 +245,72 @@ def count_labels_per_class(labels_folder, images_folder, class_mapping, image_ex
         for fname in invalid_files:
             print(fname)
 
+
+def count_labels_per_class_v2(labels_folder, images_folder, class_mapping, image_exts=(".jpg", ".jpeg", ".png")):
+    """
+    Enhanced version: Counts labeled objects per class with improved formatting.
+    Returns the class counter for programmatic use.
+    """
+    # Build index to name mapping for output
+    idx_to_name = {idx: name for name, idx in class_mapping.items()}
+    class_counter = Counter()
+    invalid_files = []
+    label_files = [f for f in os.listdir(labels_folder) if f.endswith('.txt')]
+    
+    for label_fname in label_files:
+        base = os.path.splitext(label_fname)[0]
+        found_image = False
+        for ext in image_exts:
+            image_path = os.path.join(images_folder, base + ext)
+            if os.path.exists(image_path):
+                found_image = True
+                break
+        if not found_image:
+            invalid_files.append(label_fname)
+            continue
+        # Count labels in file
+        with open(os.path.join(labels_folder, label_fname), 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if parts:
+                    try:
+                        class_idx = int(parts[0])
+                        class_counter[class_idx] += 1
+                    except ValueError:
+                        continue
+    
+    # Print enhanced summary with better formatting
+    total_objects = sum(class_counter.values())
+    print("=" * 60)
+    print(f"📊 Object Distribution Summary")
+    print(f"   Labels Folder: {labels_folder}")
+    print(f"   Images Folder: {images_folder}")
+    print("=" * 60)
+    print(f"{'Class ID':<10} {'Class Name':<20} {'Count':<10} {'%':<10}")
+    print("-" * 60)
+    
+    for cls, count in sorted(class_counter.items()):
+        name = idx_to_name.get(cls, "Unknown")
+        percentage = (count / total_objects * 100) if total_objects > 0 else 0
+        print(f"{cls:<10} {name:<20} {count:<10} {percentage:>6.2f}%")
+    
+    print("-" * 60)
+    print(f"{'TOTAL':<10} {'':<20} {total_objects:<10} {'100.00%':>10}")
+    print("=" * 60)
+    
+    if invalid_files:
+        print(f"\n⚠️  Warning: {len(invalid_files)} label file(s) without matching images")
+        if len(invalid_files) <= 10:
+            for fname in invalid_files:
+                print(f"   - {fname}")
+        else:
+            print(f"   Showing first 10 of {len(invalid_files)}:")
+            for fname in invalid_files[:10]:
+                print(f"   - {fname}")
+            print(f"   ... and {len(invalid_files) - 10} more")
+    
+    return class_counter
+
 def delete_labels_without_images(labels_folder, images_folder, image_extensions=(".jpg", ".jpeg", ".png")):
     """ Deletes label files that do not have a corresponding image file."""
     deleted = []

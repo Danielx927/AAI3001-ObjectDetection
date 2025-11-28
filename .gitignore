@@ -1,6 +1,7 @@
 dataset/fruit-detection
 dataset/fruit_images (apple, banana, orange)/
 dataset/input
+dataset/split
 
 __pycache__/
 .ipynb_checkpoints/
