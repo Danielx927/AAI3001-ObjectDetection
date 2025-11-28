@@ -1,6 +1,140 @@
 # AAI3001 Fruit Detection Project
 
-This repository contains a comprehensive fruit detection system using YOLO and Faster R-CNN models, with a web interface for real-time inference.
+An automated fruit detection and quality assessment system using deep learning models (YOLO, Faster R-CNN) with a web interface for real-time inference.
+
+---
+
+## Overview
+
+### Problem Statement
+Manual fruit inspection is time-consuming, labour-intensive, and susceptible to inconsistency and human error in quality assessment and detecting defective fruits. Traditional methods lack the scalability and precision required for modern food processing and retail operations.
+
+### Motivation
+Automated fruit classification systems can enhance efficiency, consistency, and scalability across retail, logistics, and food processing operations. By leveraging deep learning models for object detection and classification, this system provides:
+- **Fast and accurate** fruit detection and localization
+- **Consistent quality assessment** eliminating human subjectivity
+- **Scalable solution** for high-volume processing environments
+- **Real-time inference** through an intuitive web interface
+
+### Solution
+This project implements a three-stage pipeline combining state-of-the-art object detection models (YOLO, Faster R-CNN) with ResNet-based classifiers to detect fruits, identify their type, and assess their quality automatically.
+
+---
+
+## Object Detection Pipeline
+
+The system uses a **three-stage pipeline** to detect fruits and classify their type and quality:
+
+### Pipeline Architecture
+
+```
+Input Image
+    ↓
+┌─────────────────────────────────────┐
+│  Stage 1: Object Detection Model   │
+│  (YOLOv8/YOLOv11/Faster R-CNN)     │
+│  → Predicts bounding boxes          │
+└─────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────┐
+│  Stage 2: Image Cropping            │
+│  → Extract regions based on boxes   │
+└─────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────┐
+│  Stage 3: Classification Models     │
+│  ├─ Fruit Type (ResNet18)           │
+│  │  → Classifies fruit category     │
+│  └─ Quality Assessment (ResNet18)   │
+│     → Determines fruit quality      │
+└─────────────────────────────────────┘
+    ↓
+Final Output: Bounding boxes + Type + Quality
+```
+
+### Stage Details
+
+1. **Object Detection (Bounding Box Prediction)**
+   - Model options: YOLOv8n, YOLOv8m, YOLOv11l, or Faster R-CNN
+   - Solely responsible for localizing fruits in the image
+   - Outputs: Bounding box coordinates for each detected fruit
+
+2. **Image Cropping**
+   - Each predicted bounding box is used to crop the corresponding region from the original image
+   - Cropped images are preprocessed for classification
+
+3. **Dual Classification**
+   - **Fruit Type Classifier** (`fruit_type_resnet18.pth`): Identifies the specific fruit category
+   - **Quality Classifier** (`quality_resnet18.pth`): Assesses the quality/freshness of the fruit
+   - Both models run in parallel on each cropped region
+
+### Output
+
+The final detection results include:
+- Bounding box coordinates
+- Fruit type label
+- Quality assessment
+- Confidence scores for each prediction
+
+---
+
+## Dataset
+
+### Overview
+- **Total Images:** 1,504
+- **Total Classes:** 10 fruit types (Apple, Banana, Orange, Watermelon, Grapes, Strawberry, Mango, Pineapple, Kiwi, Pear)
+- **Format:** YOLO (bounding box annotations in `.txt` files)
+- **Split Ratio:** 75% Train / 15% Validation / 10% Test
+
+### Data Collection & Annotation
+
+The dataset was collected through a combination of self-annotation and external sources to ensure class balance and diversity.
+
+#### Self-Annotated Images (~1,054 images)
+
+A total of **1,504 images** were annotated manually using **LabelImg**, with approximately **100 images per class** filtered from our previously collected dataset used in the first half of the project on fruit classification.
+
+#### External Kaggle Sources (450 images)
+
+To increase variability and representation, **450 additional images** were sourced from multiple Kaggle datasets. Only images that matched the 10 fruit classes were included.
+
+All imported images were:
+- Renamed and reorganized into the project structure
+- Re-labelled to ensure consistent class naming
+- Checked for duplicates before inclusion
+- Converted to YOLO format labels
+
+**Kaggle Sources:**
+
+1. **Fruit Images for Object Detection**  
+   <https://www.kaggle.com/datasets/mbkinaci/fruit-images-for-object-detection>  
+   *300 images of apple, banana and orange*
+
+2. **Fruit Detection Dataset**  
+   <https://www.kaggle.com/datasets/lakshaytyagi01/fruit-detection>  
+   *150 images of watermelon*
+
+### Data Splitting & Class Balancing
+
+To ensure robust model evaluation and fair representation across classes, the dataset underwent **stratified splitting** and **class balancing**:
+
+#### Train/Validation/Test Split
+
+- The dataset was split using **multi-label iterative stratification** to preserve each fruit class's distribution between splits, even for images containing multiple fruit types
+- **Split ratio:** 75% Train / 15% Validation / 10% Test
+- All images and their corresponding YOLO label files were kept together within each split
+
+#### Class Balancing
+
+After splitting:
+- **Class balancing was applied to the training set only** (validation and test sets were left untouched for realistic evaluation)
+- Target: **300 labels per class** in the training set
+- Methods used:
+    - **Undersampling:** If a class had more than 300 bounding boxes, images and labels were randomly selected until the class count reached the target
+    - **Oversampling:** If a class was underrepresented, images containing that class were duplicated until reaching the target count
+- This process ensures no model bias toward majority classes and corrects for natural imbalances
+
+> **Final training data features a balanced number of labeled objects per class (300 each), maximizing fairness and reliability in model learning.**
 
 ---
 
@@ -9,14 +143,17 @@ This repository contains a comprehensive fruit detection system using YOLO and F
 ```
 AAI3001-Project2/
 ├── app.py                              # Flask web application for fruit detection
-├── helper.py                           # Utility functions for dataset processing
-├── model_evaluation.py                 # Model evaluation and metrics calculation
+├── helper.py                           # Utility functions for dataset  processing (used in data_collection.ipynb)
+├── model_evaluation.py                 # Model evaluation and metrics calculation (used in bbox_accuracy_comparison.ipynb)
 ├── requirements.txt                    # Python dependencies
 ├── data.yaml                           # YOLO dataset configuration
 ├── metrics.yaml                        # Model performance metrics
 │
 ├── dataset/                            # Dataset directory
 │   ├── fruit_images (apple, banana, orange)/  # Kaggle dataset (300 images)
+│   ├── input                           # Consolidated set of images and corresponding labels
+│       ├── images/                     
+│       ├── labels/                     
 │   └── split/                          # Train/val/test splits
 │       ├── train/
 │       │   ├── images/                 # Training images
@@ -74,18 +211,18 @@ AAI3001-Project2/
 
 ### Key Directories
 
-- **`dataset/split`**: Contains all training/validation/test data in YOLO format
+- **`dataset/split/`**: Contains all training/validation/test data in YOLO format
 - **`models/`**: Stores trained model weights for inference
 - **`yolo/`**: YOLO-specific training scripts and notebooks
 - **`rcnn_family/`**: Faster R-CNN implementation and experiments
-- **`evaluation_results/`**: Performance metrics and evaluation outputs of models on test set
+- **`evaluation_results/`**: Performance metrics and evaluation outputs on test set
 - **`templates/`**: Web application frontend files
 
 ---
 
-## Running the Application (app.py)
+## Running the Application
 
-Follow these steps to run the application successfully. The app will NOT run if any step is skipped or done out of order.
+Follow these steps to run the web application successfully. The app will NOT run if any step is skipped or done out of order.
 
 ### 1. Create a New Python Virtual Environment (REQUIRED)
 
@@ -121,7 +258,7 @@ This installs:
 - OpenCV  
 - Pillow  
 - Gradio (if used for deployment)  
-- All helper libraries used by `app.py` and `app2.py`
+- All helper libraries
 
 If installation fails, ensure you have Python **3.9–3.11**.
 
@@ -139,16 +276,12 @@ You should see output similar to:
 * Running on http://127.0.0.1:5000 (Press CTRL+C to quit)
 ```
 
-### 5. Open the Web Interface
+### 4. Open the Web Interface
 
 Once the server is running:
 
 1. Open your browser
-2. Go to:
-
-```
-http://127.0.0.1:5000
-```
+2. Go to: `http://127.0.0.1:5000`
 
 You should now see the full Fruit Detection interface, including:
 - Upload button
@@ -158,87 +291,36 @@ You should now see the full Fruit Detection interface, including:
 - Live Video Object Detection
 - Performance Metrics
 
-### 6. Optional: Running the Gradio Deployment (`app.py` for Hugging Face)
-
-If you are running the Gradio version instead of Flask, use:
-
-```bash
-python app.py
-```
-
-You will see a Gradio URL such as:
-
-```
-Running on http://127.0.0.1:7860
-```
-
-Open that link to use the hosted interface.
-
-### 7. Stopping the App
+### 5. Stopping the App
 
 To safely stop the server:
 
-- Press **CTRL + C** in the terminal.
-
-
-
-
-## Data Collection & Annotation
-
-The dataset consists of **1,504 fruit images** across **10 fruit classes**. Data was collected through a combination of self-annotation and external sources to ensure class balance and diversity.
+- Press **CTRL + C** in the terminal
 
 ---
 
-### 1. Self-Annotated Images (1054 images)
+## Model Deployment
 
-A total of **1504 images** were annotated manually using **LabelImg**, of which contains
-**around 100 images per class** that were filtered from our previously collected dataset used in the first half of the project on fruit classification. 
+All trained models are deployed to Hugging Face Hub for easy access and sharing:
+
+**Repository:** [Danielx927/fruit-detection-models](https://huggingface.co/Danielx927/fruit-detection-models)
+
+**Available Models:**
+- `yolov8n.pt` - YOLOv8 Nano
+- `yolov8m.pt` - YOLOv8 Medium
+- `yolo11l.pt` - YOLO11 Large
+- `faster_rcnn.pth` - Faster R-CNN
+
+**Usage:**
+
+```python
+from huggingface_hub import hf_hub_download
+from ultralytics import YOLO
+
+# Download and load a YOLO model
+model_path = hf_hub_download(repo_id="Danielx927/fruit-detection-models", filename="yolov8n.pt")
+model = YOLO(model_path)
+results = model.predict('image.jpg')
+```
 
 ---
-
-### 2. External Kaggle Sources (450 images)
-
-To increase variability and representation, **450 additional images** were sourced from **multiple Kaggle datasets**.  
-Only images that matched the 10 fruit classes were included.
-
-All imported images were:
-- Renamed and reorganized into the project structure
-- Re-labelled to ensure consistent class naming
-- Checked for duplicates before inclusion
-- Converted any non-yolo format labels into yolo format
-
-#### Kaggle Sources Used
-
-Below are the Kaggle datasets referenced (insert actual links in the placeholders):
-
-1. **Dataset Source 1**  
-   *Fruit Images for Object Detection:* <https://www.kaggle.com/datasets/mbkinaci/fruit-images-for-object-detection>  
-   *Notes:* 300 images of apple, banana and orange were taken from this dataset
-
-2. **Dataset Source 2**  
-   *Fruit Detection Dataset:* <https://www.kaggle.com/datasets/lakshaytyagi01/fruit-detection>  
-   *Notes:* 150 images of watermelon were taken from this dataset
-
-
-## Data Splitting & Class Balancing
-
-To ensure robust model evaluation and fair representation across classes, the dataset underwent **stratified train/validation splitting** and **class balancing**:
-
-### 1. Train/Validation Split
-
-- The dataset was split into **training** and **validation** sets using *multi-label iterative stratification*.
-  This method preserves each fruit class's distribution between splits, even for images containing multiple fruit types.
-- **Validation size:** 20% of the dataset
-- All images and their corresponding YOLO label files were kept together within each split.
-
-### 2. Balancing Class Distribution (Undersampling & Oversampling)
-
-After splitting:
-- **Class balancing was applied to the training set only** (the validation set was left untouched for realistic evaluation).
-- For each fruit class, we targeted equal numbers of labeled objects (bounding boxes):
-    - **Undersampling:** If a class had more than the target number of bounding boxes, images and labels were randomly selected so no class exceeded the target.
-    - **Oversampling:** If a class was underrepresented, images containing that class were duplicated until the class reached the target count.
-- This process ensures no model bias toward majority classes and corrects for natural imbalances after splitting.
-
-> **Final training data features a balanced number of labeled objects per class, maximizing fairness and reliability in model learning.**
-
