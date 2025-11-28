@@ -1,3 +1,88 @@
+# AAI3001 Fruit Detection Project
+
+This repository contains a comprehensive fruit detection system using YOLO and Faster R-CNN models, with a web interface for real-time inference.
+
+---
+
+## Project Structure
+
+```
+AAI3001-Project2/
+├── app.py                              # Flask web application for fruit detection
+├── helper.py                           # Utility functions for dataset processing
+├── model_evaluation.py                 # Model evaluation and metrics calculation
+├── requirements.txt                    # Python dependencies
+├── data.yaml                           # YOLO dataset configuration
+├── metrics.yaml                        # Model performance metrics
+│
+├── dataset/                            # Dataset directory
+│   ├── fruit_images (apple, banana, orange)/  # Kaggle dataset (300 images)
+│   └── split/                          # Train/val/test splits
+│       ├── train/
+│       │   ├── images/                 # Training images
+│       │   └── labels/                 # YOLO format labels
+│       ├── val/
+│       │   ├── images/
+│       │   └── labels/
+│       └── test/
+│           ├── images/
+│           └── labels/
+│
+├── models/                             # Trained model weights
+│   ├── yolov8n.pth                     # YOLOv8 Nano
+│   ├── yolov8m.pth                     # YOLOv8 Medium
+│   ├── yolov11l.pth                    # YOLOv11 Large
+│   ├── faster_rcnn_fruits.pth          # Faster R-CNN
+│   ├── fruit_type_resnet18.pth         # Fruit classification model
+│   └── quality_resnet18.pth            # Quality assessment model
+│
+├── yolo/                               # YOLO training and inference
+│   ├── train.ipynb                     # YOLO training notebook
+│   ├── model_inference.ipynb           # YOLO inference notebook
+│   ├── yolov8n.pt                      # Ultralytics format weights
+│   ├── yolov8m.pt
+│   ├── yolo11l.pt
+│   └── runs/                           # Training run outputs
+│
+├── rcnn_family/                        # Faster R-CNN implementation
+│   ├── train_faster_rcnn.py            # Training script
+│   ├── rcnn_model.py                   # Model architecture
+│   ├── rcnn_dataset.py                 # Dataset loader
+│   └── rcnn_experiments.ipynb          # Experimentation notebook
+│
+├── runs/                               # YOLO training runs
+│   ├── fruits_yolov8n/
+│   ├── fruits_yolov8m/
+│   └── fruits_yolov11l/
+│
+├── evaluation_results/                 # Model evaluation outputs
+│   ├── yolov8n/
+│   ├── yolov8m/
+│   ├── yolov11l/
+│   └── faster_rcnn/
+│
+├── test_results/                      # Inference results
+│   ├── yolo/
+│   └── faster_rcnn/
+│
+├── templates/                         # Flask HTML templates
+│   └── index.html
+│
+├── data_collection.ipynb              # Dataset preparation notebook
+└── bbox_accuracy_comparison.ipynb     # Model comparison analysis
+```
+
+### Key Directories
+
+- **`dataset/split`**: Contains all training/validation/test data in YOLO format
+- **`models/`**: Stores trained model weights for inference
+- **`yolo/`**: YOLO-specific training scripts and notebooks
+- **`rcnn_family/`**: Faster R-CNN implementation and experiments
+- **`evaluation_results/`**: Performance metrics and evaluation outputs of models on test set
+- **`templates/`**: Web application frontend files
+
+---
+
 ## Running the Application (app.py)
 
 Follow these steps to run the application successfully. The app will NOT run if any step is skipped or done out of order.
@@ -113,7 +198,7 @@ A total of **1504 images** were annotated manually using **LabelImg**, of which 
 
 ### 2. External Kaggle Sources (450 images)
 
-To increase variability and representation, **300 additional images** were sourced from **multiple Kaggle datasets**.  
+To increase variability and representation, **450 additional images** were sourced from **multiple Kaggle datasets**.  
 Only images that matched the 10 fruit classes were included.
 
 All imported images were:
